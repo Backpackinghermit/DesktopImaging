@@ -227,7 +227,7 @@ class ImageApp(QMainWindow):
         right_column_layout.addWidget(self.checkbox5)
 
         process_button = QPushButton("Process")
-        process_button.setStyleSheet("border-radius: 5px; background-color: white;")
+        process_button.setStyleSheet("border-radius: 5px; background-color: white; padding: 10px;")
         process_button.clicked.connect(self.process_images)
         right_column_layout.addWidget(process_button)
 
