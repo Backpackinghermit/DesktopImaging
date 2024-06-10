@@ -486,7 +486,7 @@ class ImageApp(QMainWindow):
             vis_image_path = output_vis_image_path  # Ensure this is defined or passed correctly
             try:
                 create_multiband_tiff(output_vis_image_path, output_path,)
-                combine_multiband_tiff(registered_images, output_path, red_channel_path, green_channel_path, blue_channel_path)
+                combine_multiband_tiff(output_path, red_channel_path, green_channel_path, blue_channel_path)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
 

@@ -40,34 +40,31 @@ def create_multiband_tiff(vis_image_path, output_dir):
 
         
         
-def combine_multiband_tiff(registered_images, output_path, red_channel_path, green_channel_path, blue_channel_path):
-    image_types = ["IRR", "VIIL", "UVR", "UVF"]
+def combine_multiband_tiff(output_path, red_channel_path, green_channel_path, blue_channel_path):
     output_tiff = os.path.join(output_path, "multiband.tiff")
 
-    # Construct the command
-    command = ["magick", red_channel_path, green_channel_path, blue_channel_path]
-    
-    # Add the registered images to the command
-    for image_type in image_types:
-        image_path = registered_images.get(image_type)
-        if image_path:
-            command.append(image_path)
+    # Hardcoded paths to registered images (replace with your actual paths)
+    registered_irr_path = os.path.join(output_path, "registered_IRR.png")
+    registered_uvr_path = os.path.join(output_path, "registered_UVR.png")
+    registered_uvf_path = os.path.join(output_path, "registered_UVF.png")
+    registered_viil_path = os.path.join(output_path, "registered_VIIL.png")
 
-    # Combine the images into a multiband TIFF
-    command.extend(["-combine", "-depth", "8", output_tiff])  # Assuming 8-bit depth
+    # Construct the command to combine all channels
+    command = [
+        "magick", "-depth", "8",
+        red_channel_path, green_channel_path, blue_channel_path,
+        registered_irr_path, registered_uvr_path, registered_uvf_path, registered_viil_path,
+        "-combine", output_tiff
+    ] 
 
     # Execute the command
+    print(command)
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         print("Error occurred:", result.stderr)
     else:
         print(f"Multiband TIFF file saved at: {output_tiff}")
 
-    
-    if result.returncode != 0:
-        print("Error occurred:", result.stderr)
-    else:
-        print(f"Multiband TIFF file saved at: {output_tiff}")
 
 def create_multiband_tiff_py(registered_images, output_path, vis_image_path):
     image_types = ["IRR", "VIIL", "UVR", "UVF"]
