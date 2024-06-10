@@ -1,2 +1,5 @@
 PyQt5
-Pillow
+numpy
+opencv-python
+SimpleITK
+tifffile
