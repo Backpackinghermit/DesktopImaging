@@ -15,7 +15,7 @@ from utils.image_registration import perform_image_registration
 from utils.IRFC import run_IRFC  # Import the IRFC function
 from utils.uvfc import run_UVFC
 from gui import image_viewer
-from utils.create_mbtiff import create_multiband_tiff
+from utils.create_mbtiff import create_multiband_tiff, combine_multiband_tiff
 
 
 
@@ -278,7 +278,7 @@ class ImageApp(QMainWindow):
         right_column_layout.addWidget(self.checkbox3)
         right_column_layout.addWidget(self.checkbox4)
         right_column_layout.addWidget(self.checkbox5)
-        
+        right_column_layout.addWidget(self.checkbox6)
 
         process_button = QPushButton("Process")
         process_button.setStyleSheet("border-radius: 5px; background-color: white; padding: 10px;")
@@ -377,8 +377,7 @@ class ImageApp(QMainWindow):
         vis_image_path = self.selected_images["Vis"]
         viil_image_path = self.selected_images["VIIL"]
         uvr_image_path = self.selected_images["UVR"]
-        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)
-        
+        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)        
         
         output_path = "output"
         if not os.path.exists(output_path):
@@ -456,14 +455,15 @@ class ImageApp(QMainWindow):
         
         
         if self.checkbox6.isChecked():
-                options = QFileDialog.Options()
-                output_path, _ = QFileDialog.getSaveFileName(self, "Save Multi-Band TIFF", "", "TIFF Files (*.tiff);;All Files (*)", options=options)
-                if output_path:
-                    try:
-                        create_multiband_tiff(self.registered_images, output_path,)
-                        QMessageBox.information(self, "Success", "Multi-Band TIFF saved successfully.")
-                    except Exception as e:
-                        QMessageBox.critical(self, "Error", f"Failed to create Multi-Band TIFF: {str(e)}")
+            vis_image_path = output_vis_image_path  # Ensure this is defined or passed correctly
+            try:
+                create_multiband_tiff(output_vis_image_path, output_path,)
+                
+                QMessageBox.information(self, "Success", "RGB channels saved successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
+
+
         
         self.update_tab_visibility()
 
