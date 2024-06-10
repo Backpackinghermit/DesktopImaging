@@ -27,6 +27,7 @@ class ImageApp(QMainWindow):
         self.title = "Conservation Image Processing"
         self.setGeometry(100, 100, 1500, 800)
         self.scroll_areas = {}  # Store scroll areas
+        
 
         self.pixmap = None
 
@@ -377,7 +378,34 @@ class ImageApp(QMainWindow):
         vis_image_path = self.selected_images["Vis"]
         viil_image_path = self.selected_images["VIIL"]
         uvr_image_path = self.selected_images["UVR"]
-        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)        
+        output_path = "output"  # Define the output path
+        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)   
+        registered_images = {}  # Initialize an empty dictionary to store registered images
+        # Define paths for the R, G, and B channels
+        
+        red_channel_path = os.path.join(output_path, "R.png")
+        green_channel_path = os.path.join(output_path, "G.png")
+        blue_channel_path = os.path.join(output_path, "B.png")
+        
+        
+    
+        
+        for image_type, image_path in self.selected_images.items():
+            if image_type != "Vis" and image_path:
+                # Perform image registration
+                registered_image = perform_image_registration(self.selected_images["Vis"], image_path, output_path)
+
+                # Construct the path for the registered image
+                registered_image_path = os.path.join(output_path, f"registered_{image_type}.png")
+
+                # Save the registered image
+                cv2.imwrite(registered_image_path, registered_image)
+
+                # Store the path of the registered image in the dictionary
+                registered_images[image_type] = registered_image_path
+
+                # Display the registered image (optional)
+                self.display_image_in_tab(registered_image_path, self.image_label_align)    
         
         output_path = "output"
         if not os.path.exists(output_path):
@@ -458,8 +486,7 @@ class ImageApp(QMainWindow):
             vis_image_path = output_vis_image_path  # Ensure this is defined or passed correctly
             try:
                 create_multiband_tiff(output_vis_image_path, output_path,)
-                
-                QMessageBox.information(self, "Success", "RGB channels saved successfully.")
+                combine_multiband_tiff(registered_images, output_path, red_channel_path, green_channel_path, blue_channel_path)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
 

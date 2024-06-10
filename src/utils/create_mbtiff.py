@@ -10,6 +10,7 @@ def create_multiband_tiff(vis_image_path, output_dir):
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
     
+    
     # Paths for separated RGB channels
     red_channel_path = os.path.join(output_dir, "R.png")
     green_channel_path = os.path.join(output_dir, "G.png")
@@ -30,18 +31,18 @@ def create_multiband_tiff(vis_image_path, output_dir):
     os.rename(os.path.join(output_dir, "channel_2.png"), blue_channel_path)
     
     print(f"RGB channels saved as {red_channel_path}, {green_channel_path}, and {blue_channel_path}")
-    
-    # Call the combine_multiband_tiff function with additional parameters
+
     
     if result.returncode != 0:
         print("Error occurred during RGB separation:", result.stderr)
     else:
-        print("Multiband TIFF saved")
+        print("RGB channels saved")
 
         
         
 def combine_multiband_tiff(registered_images, output_path, red_channel_path, green_channel_path, blue_channel_path):
     image_types = ["IRR", "VIIL", "UVR", "UVF"]
+    output_tiff = os.path.join(output_path, "multiband.tiff")
 
     # Construct the command
     command = ["magick", red_channel_path, green_channel_path, blue_channel_path]
@@ -53,15 +54,20 @@ def combine_multiband_tiff(registered_images, output_path, red_channel_path, gre
             command.append(image_path)
 
     # Combine the images into a multiband TIFF
-    command.extend(["-combine", "-depth", "8", output_path])  # Assuming 8-bit depth
+    command.extend(["-combine", "-depth", "8", output_tiff])  # Assuming 8-bit depth
 
     # Execute the command
     result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        print("Error occurred:", result.stderr)
+    else:
+        print(f"Multiband TIFF file saved at: {output_tiff}")
+
     
     if result.returncode != 0:
         print("Error occurred:", result.stderr)
     else:
-        print(f"Multiband TIFF file saved at: {output_path}")
+        print(f"Multiband TIFF file saved at: {output_tiff}")
 
 def create_multiband_tiff_py(registered_images, output_path, vis_image_path):
     image_types = ["IRR", "VIIL", "UVR", "UVF"]
