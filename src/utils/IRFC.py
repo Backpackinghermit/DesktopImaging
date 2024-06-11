@@ -1,7 +1,8 @@
 import os
 import subprocess
+from PIL import Image
 
-def run_IRFC(image_path, viil_image_path, output_folder="processed_images"):
+def run_IRFC_IM(image_path, viil_image_path, output_folder="processed_images"):
     try:
         filename = os.path.basename(image_path)
         processed_filename = 'IRFC_processed_' + filename
@@ -46,3 +47,33 @@ def run_IRFC(image_path, viil_image_path, output_folder="processed_images"):
 
     except Exception as e:
         return None, str(e)   # Return a string representation of other errors
+
+def run_IRFC_vill(image_path, viil_image_path, output_folder="processed_images"):
+    try:
+        filename = os.path.basename(image_path)
+        processed_filename = "IRFC-viil" + filename
+        output_path = os.path.join(output_folder, processed_filename)
+        os.makedirs(output_folder, exist_ok=True)
+
+        # Load the images using Pillow
+        with Image.open(image_path) as img, Image.open(viil_image_path) as viil_img:
+            img = img.convert('RGB')
+            viil_img = viil_img.convert('RGB')
+            
+            # Split images into RGB channels
+            r, g, b = img.split()
+            _, viil_g, _ = viil_img.split()  # Only use the green channel from UVR
+
+            # Perform channel swapping
+            swapped_image = Image.merge("RGB", (viil_g, r, g)) 
+
+            # Save the processed image
+            swapped_image.save(output_path)
+
+        return output_path, None  # Success
+
+    except (FileNotFoundError, ValueError) as e:
+        return None, str(e)  # Return error message
+
+    except Exception as e:
+        return None, str(e)  # Catch any other unexpected errors

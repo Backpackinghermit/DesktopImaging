@@ -1,47 +1,32 @@
+from PIL import Image
 import os
-import subprocess
 
 def run_UVFC(image_path, uvr_image_path, output_folder="processed_images"):
     try:
         filename = os.path.basename(image_path)
-        processed_filename = 'UVFC_processed_' + filename
+        processed_filename = "UVFC_processed_" + filename
         output_path = os.path.join(output_folder, processed_filename)
-
         os.makedirs(output_folder, exist_ok=True)
 
-        # ImageMagick command for channel swapping (updated for multiple input images)
-        # Using list format for better argument handling
-        command = [
-            'magick',
-            image_path,
-            '-auto-orient',
-            uvr_image_path,
-            '-auto-orient',
-            '-channel', 'RG',
-            '-separate',
-            '-swap', '0,1',  # Swap Red and Green channels
-            '-swap', '1,2',  # Swap Green and Blue channels
-            '-combine',
-            os.path.join(output_path)
-        ]
+        # Load the images using Pillow
+        with Image.open(image_path) as img, Image.open(uvr_image_path) as uvr_img:
+            img = img.convert('RGB')
+            uvr_img = uvr_img.convert('RGB')
+            
+            # Split images into RGB channels
+            r, g, b = img.split()
+            _, uvr_g, _ = uvr_img.split()  # Only use the green channel from UVR
 
+            # Perform channel swapping
+            swapped_image = Image.merge("RGB", (g, b, uvr_g))  # g -> R, b -> G, uvr_g -> B
 
-        # Run ImageMagick with improved error handling
-        result = subprocess.run(
-            command,
-            check=True,  
-            capture_output=True,  
-            text=True 
-        )
+            # Save the processed image
+            swapped_image.save(output_path)
 
-        if result.returncode == 0:
-            return output_path, None  
-        else:
-            error_message = result.stderr  # Capture stderr for detailed errors
-            return None, error_message  
+        return output_path, None  # Success
 
-    except subprocess.CalledProcessError as e:
-        return None, e.stderr  # Return the error message from ImageMagick
+    except (FileNotFoundError, ValueError) as e:
+        return None, str(e)  # Return error message
 
     except Exception as e:
-        return None, str(e)   # Return a string representation of other errors
+        return None, str(e)  # Catch any other unexpected errors
