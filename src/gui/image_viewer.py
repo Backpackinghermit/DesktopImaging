@@ -272,19 +272,21 @@ class ImageApp(QMainWindow):
             }
         """)
 
+         # Initialize tabs and set initial order
+        self.init_tab(self.image_label_align, "Align")
+        self.init_tab(self.image_label_vis, "Visible")
+        self.init_tab(self.image_label_uvf, "UVF")
+        self.init_tab(self.image_label_uvr, "UVR")
+        self.init_tab(self.image_label_irr, "IRR")
+        self.init_tab(self.image_label_viil, "VIIL")
         self.init_tab(self.image_label_irfc, "IRFC (VIIL)")
         self.init_tab(self.image_label_irfcirr, "IRFC (IRR)")
         self.init_tab(self.image_label_uvfc, "UVFC")
         self.init_tab(self.image_label_multiband, ("Multiband"))
         self.init_tab(self.image_label_processed, "Processed Images")
-        
-        self.init_tab(self.image_label_uvr, "UVR")
-        self.init_tab(self.image_label_irr, "IRR")
-        self.init_tab(self.image_label_uvf, "UVF")
-        self.init_tab(self.image_label_viil, "VIIL")
-        self.init_tab(self.image_label_processed, "Processed Images")
-    
+        self.init_tab(self.image_label_processed, "Processed Images") 
 
+        # Move the layout widget insertion here
         bottom_row_layout.addWidget(self.tabs)
         
         right_column = QFrame()
@@ -328,11 +330,11 @@ class ImageApp(QMainWindow):
         file_menu.addAction(save_action)
         
     def update_tab_visibility(self):
-        
-        self.tabs.setTabVisible(4, self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
-        self.tabs.setTabVisible(5, self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
-        self.tabs.setTabVisible(6, self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None) # UVR tab visibility
-        self.tabs.setTabVisible(7, self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
+        self.tabs.setTabVisible(0, self.checkbox1.isChecked() and self.image_label_align.pixmap() is not None) 
+        self.tabs.setTabVisible(1, self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
+        self.tabs.setTabVisible(2, self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
+        self.tabs.setTabVisible(3, self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None) # UVR tab visibility
+        self.tabs.setTabVisible(4, self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
         label_mapping = {
             "IRR": self.image_label_irr,
             "VIIL": self.image_label_viil,
@@ -352,10 +354,10 @@ class ImageApp(QMainWindow):
                     self.tabs.setTabVisible(tab_index, True)
                 else:
                     print(f"Image label not found for {image_type}")
-        self.tabs.setTabVisible(2, self.checkbox1.isChecked() and self.image_label_irr.pixmap() is not None) 
-        self.tabs.setTabVisible(1, self.checkbox1.isChecked() and self.image_label_uvf.pixmap() is not None) 
-        self.tabs.setTabVisible(3, self.checkbox1.isChecked() and self.image_label_viil.pixmap() is not None) 
-        self.tabs.setTabVisible(0, self.checkbox1.isChecked() and self.image_label_vis.pixmap() is not None) 
+        self.tabs.setTabVisible(5, self.checkbox1.isChecked() and self.image_label_irr.pixmap() is not None) 
+        self.tabs.setTabVisible(6, self.checkbox1.isChecked() and self.image_label_uvf.pixmap() is not None) 
+        self.tabs.setTabVisible(7, self.checkbox1.isChecked() and self.image_label_viil.pixmap() is not None) 
+        self.tabs.setTabVisible(8, self.checkbox1.isChecked() and self.image_label_vis.pixmap() is not None) 
                
     def clear_tabs(self):
         # Set visibility of all tabs except "Processed Images" to False
