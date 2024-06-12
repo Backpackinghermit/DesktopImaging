@@ -2,11 +2,14 @@ import cv2 as cv
 import numpy as np
 import os
 import SimpleITK as sitk
+import shutil
 
 
-def perform_image_registration(vis_image_path, ir_image_path, output_path):
+def perform_image_registration(vis_image_path, ir_image_path, output_path, image_type):
     try:
         print("Starting registration...")
+        filename = os.path.join(output_path, f"registered_{image_type}_{os.path.basename(ir_image_path)}")
+        
         # Load images
         img2 = cv.imread(vis_image_path, cv.IMREAD_GRAYSCALE)  # referenceImage
         img1 = cv.imread(ir_image_path, cv.IMREAD_GRAYSCALE)  # sensedImage
@@ -71,19 +74,20 @@ def perform_image_registration(vis_image_path, ir_image_path, output_path):
         )
 
         # Save the processed image
-        cv.imwrite(os.path.join(output_path, 'registered.jpg'), img1Reg)
-
         print("Registration successful.")
-        return img1Reg
+        cv.imwrite(filename, img1Reg)
+        return filename
 
     except Exception as e:
         print("Image registration failed, trying broader parameters:", e)
-        return registration_broad(vis_image_path, ir_image_path, output_path) #try broad parameters
+        return registration_broad(vis_image_path, ir_image_path, output_path, image_type) #try broad parameters
 
 
-def registration_broad(vis_image_path, ir_image_path, output_path):
+def registration_broad(vis_image_path, ir_image_path, output_path, image_type):
     try:
-        print("Starting registration with broader parameters...")
+        print("Starting registration...")
+        filename = os.path.join(output_path, f"registered_{image_type}_{os.path.basename(ir_image_path)}")
+        # Load images
         # Load images
         img2 = cv.imread(vis_image_path, cv.IMREAD_GRAYSCALE)  # referenceImage
         img1 = cv.imread(ir_image_path, cv.IMREAD_GRAYSCALE)  # sensedImage
@@ -148,15 +152,20 @@ def registration_broad(vis_image_path, ir_image_path, output_path):
         )
 
         # Save the processed image
-        cv.imwrite(os.path.join(output_path, 'registered.jpg'), img1Reg)
+        cv.imwrite(filename, img1Reg)
 
         print("Registration successful with broader parameters.")
-        return img1Reg
+        return filename
 
     except Exception as e:
-        print("Image registration failed with broader parameters:", e)
-        print("Returning input image...")
-        return cv.imread(ir_image_path, cv.IMREAD_GRAYSCALE)  # Return input image
+        print(f"Image registration failed with broader parameters for {image_type}:", e)
+        print("Saving input image to output directory and returning its path...")
+
+        # Save the input image to the output directory with a prefix (e.g., "unregistered_")
+        unregistered_filename = os.path.join(output_path, f"unregistered_{image_type}_{os.path.basename(ir_image_path)}")
+        cv.imwrite(unregistered_filename, img1) 
+
+        return unregistered_filename  # Return the path of the saved unregistered image
 
 def mutual_information_registration(vis_image_path, ir_image_path, output_path):
     try:

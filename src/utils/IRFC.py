@@ -48,8 +48,12 @@ def run_IRFC_IM(image_path, viil_image_path, output_folder="processed_images"):
     except Exception as e:
         return None, str(e)   # Return a string representation of other errors
 
-def run_IRFC_vill(image_path, viil_image_path, output_folder="processed_images"):
+def run_IRFC_vill(image_path, viil_image_path, output_folder="output"):
     try:
+        # Ensure the paths are strings and not booleans
+        if not isinstance(image_path, str) or not isinstance(viil_image_path, str):
+            raise ValueError("Invalid image path provided")
+
         filename = os.path.basename(image_path)
         processed_filename = "IRFC-viil" + filename
         output_path = os.path.join(output_folder, processed_filename)
@@ -65,7 +69,7 @@ def run_IRFC_vill(image_path, viil_image_path, output_folder="processed_images")
             _, viil_g, _ = viil_img.split()  # Only use the green channel from UVR
 
             # Perform channel swapping
-            swapped_image = Image.merge("RGB", (viil_g, r, g)) 
+            swapped_image = Image.merge("RGB", (viil_g, r, g))
 
             # Save the processed image
             swapped_image.save(output_path)
@@ -73,7 +77,4 @@ def run_IRFC_vill(image_path, viil_image_path, output_folder="processed_images")
         return output_path, None  # Success
 
     except (FileNotFoundError, ValueError) as e:
-        return None, str(e)  # Return error message
-
-    except Exception as e:
-        return None, str(e)  # Catch any other unexpected errors
+        return 

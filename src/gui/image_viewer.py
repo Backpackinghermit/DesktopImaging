@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import PIL
 from PIL import Image
+import shutil
 
 # Import the image registration function
 from utils.image_registration import perform_image_registration
@@ -89,6 +90,8 @@ class ImageApp(QMainWindow):
         button3 = QPushButton("VIIL")
         button4 = QPushButton("UVR")
         button5 = QPushButton("UVF")
+        button6 = QPushButton("660nm")
+        button7 = QPushButton("735nm")
 
         button1.clicked.connect(lambda: self.open_image_and_display_thumbnail("Vis"))
         button2.clicked.connect(lambda: self.open_image_and_display_thumbnail("IRR"))
@@ -102,11 +105,14 @@ class ImageApp(QMainWindow):
         section1.addWidget(button2)
         section1.addWidget(button3)
         
+        
         button1.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
         button2.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
         button3.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
         button4.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
         button5.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
+        button6.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
+        button7.setStyleSheet("border-radius: 5px; background-color: white; padding: 5px;")
         
 
         section1_widget = QWidget()
@@ -224,14 +230,23 @@ class ImageApp(QMainWindow):
         self.image_label_align = QLabel()
         self.image_label_irfc = QLabel()
         self.image_label_irfcirr = QLabel()
-        self.image_label_uvr = QLabel()
+        self.image_label_uvfc = QLabel()
         self.image_label_processed = QLabel()
         self.image_label_multiband = QLabel()
+        self.image_label_vis = QLabel()
+        self.image_label_uvr = QLabel()
+        self.image_label_irr = QLabel()
+        self.image_label_uvf = QLabel()
+        self.image_label_viil = QLabel()
+        self.image_label_vis.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+        self.image_label_irr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+        self.image_label_uvf.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+        self.image_label_viil.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_processed.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_align.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_irfc.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_irfcirr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_uvr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+        self.image_label_uvfc.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_multiband.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.tabs.setStyleSheet("""
             QTabWidget::pane {
@@ -260,8 +275,14 @@ class ImageApp(QMainWindow):
         self.init_tab(self.image_label_align, "Align")
         self.init_tab(self.image_label_irfc, "IRFC (VIIL)")
         self.init_tab(self.image_label_irfcirr, "IRFC (IRR)")
-        self.init_tab(self.image_label_uvr, "UVFC")
+        self.init_tab(self.image_label_uvfc, "UVFC")
         self.init_tab(self.image_label_multiband, ("Multiband"))
+        self.init_tab(self.image_label_processed, "Processed Images")
+        self.init_tab(self.image_label_vis, "Visible")
+        self.init_tab(self.image_label_uvr, "UVR")
+        self.init_tab(self.image_label_irr, "IRR")
+        self.init_tab(self.image_label_uvf, "UVF")
+        self.init_tab(self.image_label_viil, "VIIL")
         self.init_tab(self.image_label_processed, "Processed Images")
     
 
@@ -276,7 +297,7 @@ class ImageApp(QMainWindow):
         self.checkbox2 = QCheckBox("IRFC (VIIL)")
         self.checkbox3 = QCheckBox("IRFC (IRR)")
         self.checkbox4 = QCheckBox("UVFC")
-        self.checkbox5 = QCheckBox("MBIS")
+        self.checkbox5 = QCheckBox("MBRS")
         self.checkbox6 = QCheckBox("Multiband TIFF")
 
         right_column_layout.addWidget(self.checkbox1)
@@ -300,10 +321,9 @@ class ImageApp(QMainWindow):
         # Create clear action
         clear_action = QAction('Clear', self)
         clear_action.triggered.connect(self.clear_images)
-
         exit_action = QAction('Exit', self)
         save_action = QAction('Save All', self)
-        exit_action.triggered.connect(self.close)
+        save_action.triggered.connect(self.save_all_images)
         file_menu.addAction(clear_action)
         file_menu.addAction(exit_action)
         file_menu.addAction(save_action)
@@ -312,10 +332,9 @@ class ImageApp(QMainWindow):
         self.tabs.setTabVisible(0, self.checkbox1.isChecked() and self.image_label_align.pixmap() is not None) 
         self.tabs.setTabVisible(1, self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
         self.tabs.setTabVisible(2, self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
-        self.tabs.setTabVisible(3, self.checkbox4.isChecked() and self.image_label_uvr.pixmap() is not None) # UVR tab visibility
+        self.tabs.setTabVisible(3, self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None) # UVR tab visibility
         self.tabs.setTabVisible(4, self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
-        
-        
+               
     def clear_tabs(self):
         # Set visibility of all tabs except "Processed Images" to False
         for i in range(self.tabs.count()):
@@ -385,54 +404,53 @@ class ImageApp(QMainWindow):
             os.makedirs(output_path)
             
         self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)   
-        registered_images = {}  # Initialize an empty dictionary to store registered images
+        
 
         vis_image_path = self.selected_images.get("Vis")
         if vis_image_path:
             try:
                 # Load and save the visible image
                 vis_image = Image.open(vis_image_path)
-                output_vis_image_path = os.path.join(output_path, "Vis.png")
+                output_vis_image_path = os.path.join(output_path, f"Vis_{os.path.basename(vis_image_path)}")
                 vis_image.save(output_vis_image_path)
-                registered_images["Vis"] = output_vis_image_path  # Update for consistency
+                self.registered_images["Vis"] = output_vis_image_path  # Update for consistency
             except FileNotFoundError:
                 raise FileNotFoundError(f"Visible image not found at: {vis_image_path}")
 
-        # Register all images except for the visible image
-        for image_type, image_path in self.selected_images.items():
-            if image_type != "Vis" and image_path:
-                # Perform image registration
-                registered_image = perform_image_registration(vis_image_path, image_path, output_path)
-                registered_image_path = os.path.join(output_path, f"registered_{image_type}.png")
-                cv2.imwrite(registered_image_path, registered_image)
-                registered_images[image_type] = registered_image_path
-                self.display_image_in_tab(registered_image_path, self.image_label_align)
-
-
         if self.checkbox1.isChecked():
-            # Register all images except for the visible image
-            for image_type in self.selected_images:
-                if image_type != "Vis" and self.selected_images[image_type]:
-                    registered_image = perform_image_registration(vis_image_path, self.selected_images[image_type], output_path)
-                    registered_image_path = os.path.join(output_path, f"registered_{image_type}.png")  # Unique filename
-                    cv2.imwrite(registered_image_path, registered_image)
-                    self.registered_images[image_type] = registered_image_path
-                    if registered_image_path:
-                        self.display_image_in_tab(registered_image_path, self.image_label_align)
-
-
+            for image_type, image_path in self.selected_images.items():
+                if image_type != "Vis" and image_path:
+                    try:
+                        # Get the registered image path from the function
+                        registered_image_path = perform_image_registration(
+                            vis_image_path, image_path, output_path, image_type
+                        )
+                        if registered_image_path:  # Check if registration was successful
+                            self.registered_images[image_type] = registered_image_path
+                            self.display_image_in_tab(registered_image_path, self.image_label_align)
+                            print(self.registered_images)
+                        else:
+                            print(f"Image registration failed for {image_type}")
+                    except Exception as e:
+                        print(f"Image registration failed for {image_type}: {str(e)}")
+                        
         if self.checkbox2.isChecked():
-                if self.checkbox1.isChecked():
-                    viil_image_path = self.registered_images["VIIL"]
-                else:
-                    viil_image_path = self.selected_images["VIIL"]
-                    
-                output_path_irfc, error_message = run_IRFC_vill(vis_image_path, viil_image_path, output_path)
-                if output_path_irfc:
-                    self.display_image_in_tab(output_path_irfc, self.image_label_irfc)
-                else:
-                    print(f"Error during IRFC: {error_message}")
-                    
+            if self.checkbox1.isChecked():
+                viil_image_path = self.registered_images["VIIL"]
+            else:
+                viil_image_path = self.selected_images["VIIL"]
+
+            # Debug print to check the paths
+            print(f"vis_image_path: {vis_image_path}")
+            print(f"viil_image_path: {viil_image_path}")
+
+            output_path_irfc, error_message = run_IRFC_vill(vis_image_path, viil_image_path, output_path)
+            
+            if output_path_irfc:
+                self.display_image_in_tab(output_path_irfc, self.image_label_irfc)
+            else:
+                print(f"Error during IRFC: {error_message}")
+                            
         if self.checkbox3.isChecked():
                 if self.checkbox1.isChecked():
                     irr_image_path = self.registered_images["IRR"]
@@ -453,15 +471,16 @@ class ImageApp(QMainWindow):
                     
                 output_path_uvr, error_message = run_UVFC(vis_image_path, uvr_image_path, output_path)
                 if output_path_uvr:
-                    self.display_image_in_tab(output_path_uvr, self.image_label_uvr)
+                    self.display_image_in_tab(output_path_uvr, self.image_label_uvfc)
                 else:
                     print(f"Error during IRFC: {error_message}")
-        
+                    
+       
         if self.checkbox6.isChecked():
             vis_image_path = output_vis_image_path  # Ensure this is defined or passed correctly
-            output_tiff_path = os.path.join(output_path, "multiband.tiff")
+            output_tiff_path = os.path.join(output_path, f"multiband_{os.path.basename(vis_image_path)}")
             try:
-                create_multiband_tiff(registered_images, output_tiff_path, output_vis_image_path)
+                create_multiband_tiff(self.registered_images, output_tiff_path, output_vis_image_path)
                 self.display_image_in_tab(output_tiff_path, self.image_label_multiband)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
@@ -484,6 +503,9 @@ class ImageApp(QMainWindow):
         image = QImage(image_path)
         pixmap = QPixmap.fromImage(image)
         scaled_pixmap = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        if pixmap.isNull():
+            print(f"Failed to load image: {image_path}")  
+            return
         label.setPixmap(scaled_pixmap)
         label.setAlignment(Qt.AlignCenter)
         label.update()
@@ -532,6 +554,39 @@ class ImageApp(QMainWindow):
             file_path = self.selected_images[image_type]
             if file_path:
                 self.add_thumbnail(image_type, file_path)
+
+    def save_all_images(self):
+        """Saves all images in the output folder to a user-selected directory and then clears the output folder."""
+
+        output_folder = "output"  # Your output folder path (replace if it's different)
+        if not os.path.exists(output_folder):
+            QMessageBox.warning(self, "Warning", "Output folder not found!")
+            return
+
+        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+        if not directory:
+            return  # User canceled the dialog
+
+        for filename in os.listdir(output_folder):
+            if filename.endswith((".png", ".jpg", ".jpeg", ".tiff")):  # Add more extensions as needed
+                source_path = os.path.join(output_folder, filename)
+                destination_path = os.path.join(directory, filename)
+                try:
+                    shutil.copy2(source_path, destination_path)  # Use shutil.copy2 to preserve metadata
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Failed to save {filename}: {e}")
+
+        # Clear the output folder
+        for filename in os.listdir(output_folder):
+            file_path = os.path.join(output_folder, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to clear output folder: {e}")
+        QMessageBox.about(self, "Done", "Images Saved")
+
+                        
 
 def main():
     app = QApplication([])
