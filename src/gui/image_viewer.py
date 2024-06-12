@@ -272,13 +272,12 @@ class ImageApp(QMainWindow):
             }
         """)
 
-        self.init_tab(self.image_label_align, "Align")
         self.init_tab(self.image_label_irfc, "IRFC (VIIL)")
         self.init_tab(self.image_label_irfcirr, "IRFC (IRR)")
         self.init_tab(self.image_label_uvfc, "UVFC")
         self.init_tab(self.image_label_multiband, ("Multiband"))
         self.init_tab(self.image_label_processed, "Processed Images")
-        self.init_tab(self.image_label_vis, "Visible")
+        
         self.init_tab(self.image_label_uvr, "UVR")
         self.init_tab(self.image_label_irr, "IRR")
         self.init_tab(self.image_label_uvf, "UVF")
@@ -329,11 +328,34 @@ class ImageApp(QMainWindow):
         file_menu.addAction(save_action)
         
     def update_tab_visibility(self):
-        self.tabs.setTabVisible(0, self.checkbox1.isChecked() and self.image_label_align.pixmap() is not None) 
-        self.tabs.setTabVisible(1, self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
-        self.tabs.setTabVisible(2, self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
-        self.tabs.setTabVisible(3, self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None) # UVR tab visibility
-        self.tabs.setTabVisible(4, self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
+        
+        self.tabs.setTabVisible(4, self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
+        self.tabs.setTabVisible(5, self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
+        self.tabs.setTabVisible(6, self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None) # UVR tab visibility
+        self.tabs.setTabVisible(7, self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
+        label_mapping = {
+            "IRR": self.image_label_irr,
+            "VIIL": self.image_label_viil,
+            "UVR": self.image_label_uvr,
+            "UVF": self.image_label_uvf,
+            "Vis": self.image_label_vis,
+        }
+
+        for image_type, image_path in self.registered_images.items():
+            if image_path is not None:  # Only process if the image exists (registration may have failed)
+                image_label = label_mapping.get(image_type)
+                if image_label:
+                    self.display_image_in_tab(image_path, image_label)  # Populate the existing label
+
+                    # Make the tab visible
+                    tab_index = self.tabs.indexOf(image_label.parent())
+                    self.tabs.setTabVisible(tab_index, True)
+                else:
+                    print(f"Image label not found for {image_type}")
+        self.tabs.setTabVisible(2, self.checkbox1.isChecked() and self.image_label_irr.pixmap() is not None) 
+        self.tabs.setTabVisible(1, self.checkbox1.isChecked() and self.image_label_uvf.pixmap() is not None) 
+        self.tabs.setTabVisible(3, self.checkbox1.isChecked() and self.image_label_viil.pixmap() is not None) 
+        self.tabs.setTabVisible(0, self.checkbox1.isChecked() and self.image_label_vis.pixmap() is not None) 
                
     def clear_tabs(self):
         # Set visibility of all tabs except "Processed Images" to False
@@ -404,9 +426,9 @@ class ImageApp(QMainWindow):
             os.makedirs(output_path)
             
         self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)   
-        
 
         vis_image_path = self.selected_images.get("Vis")
+        
         if vis_image_path:
             try:
                 # Load and save the visible image
@@ -425,10 +447,12 @@ class ImageApp(QMainWindow):
                         registered_image_path = perform_image_registration(
                             vis_image_path, image_path, output_path, image_type
                         )
+                        
                         if registered_image_path:  # Check if registration was successful
                             self.registered_images[image_type] = registered_image_path
-                            self.display_image_in_tab(registered_image_path, self.image_label_align)
+                            
                             print(self.registered_images)
+
                         else:
                             print(f"Image registration failed for {image_type}")
                     except Exception as e:
@@ -485,7 +509,7 @@ class ImageApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
         
-      
+       
         self.update_tab_visibility()
 
     def reorder_thumbnails(self):
