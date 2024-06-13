@@ -438,6 +438,7 @@ class ImageApp(QMainWindow):
                 output_vis_image_path = os.path.join(output_path, f"Vis_{os.path.basename(vis_image_path)}")
                 vis_image.save(output_vis_image_path)
                 self.registered_images["Vis"] = output_vis_image_path  # Update for consistency
+                self.display_image_in_tab(output_vis_image_path, self.image_label_vis)
             except FileNotFoundError:
                 raise FileNotFoundError(f"Visible image not found at: {vis_image_path}")
 
@@ -511,7 +512,7 @@ class ImageApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
         
-       
+        
         self.update_tab_visibility()
 
     def reorder_thumbnails(self):
