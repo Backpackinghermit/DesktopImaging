@@ -3,8 +3,8 @@ import subprocess
 from PyQt5.QtWidgets import (QMainWindow, QAction, QFileDialog, QLabel, QScrollArea, QMessageBox,
                              QWidget, QHBoxLayout, QVBoxLayout, QFrame, QPushButton, QApplication, 
                              QCheckBox, QSizePolicy, QTabWidget, QStyle )
-from PyQt5.QtGui import QPixmap, QImage, QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap, QImage, QIcon, QTransform, QPainter, QColor
+from PyQt5.QtCore import Qt, QPoint, QPointF, QRectF, QSizeF
 import cv2
 import numpy as np
 import PIL
@@ -226,29 +226,26 @@ class ImageApp(QMainWindow):
         bottom_row.setStyleSheet("background-color: #d3d3d3; border: 0px; border-radius: 20px")
                
 
+        
         self.tabs = QTabWidget()
-        self.image_label_align = QLabel()
-        self.image_label_irfc = QLabel()
-        self.image_label_irfcirr = QLabel()
-        self.image_label_uvfc = QLabel()
-        self.image_label_processed = QLabel()
-        self.image_label_multiband = QLabel()
-        self.image_label_vis = QLabel()
-        self.image_label_uvr = QLabel()
-        self.image_label_irr = QLabel()
-        self.image_label_uvf = QLabel()
-        self.image_label_viil = QLabel()
-        self.image_label_vis.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_uvr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_irr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_uvf.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_viil.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_processed.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_align.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_irfc.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_irfcirr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_uvfc.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
-        self.image_label_multiband.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+        self.image_label_align = ZoomableLabel()
+        self.image_label_irfc = ZoomableLabel()
+        self.image_label_irfcirr = ZoomableLabel()
+        self.image_label_uvfc = ZoomableLabel()
+        self.image_label_processed = ZoomableLabel()
+        self.image_label_multiband = ZoomableLabel()
+        self.image_label_vis = ZoomableLabel()
+        self.image_label_uvr = ZoomableLabel()
+        self.image_label_irr = ZoomableLabel()
+        self.image_label_uvf = ZoomableLabel()
+        self.image_label_viil = ZoomableLabel()
+
+        # Apply the same stylesheet settings to each ZoomableLabel
+        for label in [self.image_label_align, self.image_label_irfc, self.image_label_irfcirr, self.image_label_uvfc,
+                    self.image_label_processed, self.image_label_multiband, self.image_label_vis, self.image_label_uvr,
+                    self.image_label_irr, self.image_label_uvf, self.image_label_viil]:
+            label.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+
         self.tabs.setStyleSheet("""
             QTabWidget::pane {
                 border: 0;
@@ -536,16 +533,15 @@ class ImageApp(QMainWindow):
 
     def display_image_in_tab(self, image_path, label):
         if image_path:
-            image = QImage(image_path)
-            pixmap = QPixmap.fromImage(image)
-            scaled_pixmap = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pixmap = QPixmap(image_path)
             if pixmap.isNull():
                 print(f"Failed to load image: {image_path}")
                 return
-            label.setPixmap(scaled_pixmap)
+
+            # Set the pixmap to the ZoomableLabel with initial scaling
+            label.set_initial_pixmap(pixmap)
             label.setAlignment(Qt.AlignCenter)
             label.update()
-
 
     def resizeEvent(self, event):
             super().resizeEvent(event)
@@ -623,7 +619,87 @@ class ImageApp(QMainWindow):
                 QMessageBox.warning(self, "Error", f"Failed to clear output folder: {e}")
         QMessageBox.about(self, "Done", "Images Saved")
 
-                        
+class ZoomableLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pixmap = None
+        self.scale_factor = 1.0
+        self.offset = QPointF(0, 0)
+        self.dragging = False
+        self.drag_start_pos = QPointF(0, 0)
+
+    def set_initial_pixmap(self, pixmap):
+        self._pixmap = pixmap
+        self.scale_factor = min(self.width() / pixmap.width(), self.height() / pixmap.height())
+        self.offset = QPointF(0, 0)
+        self.update_image()
+
+    def update_image(self):
+        if self._pixmap:
+            transform = QTransform()
+            transform.scale(self.scale_factor, self.scale_factor)
+            scaled_pixmap = self._pixmap.transformed(transform, Qt.SmoothTransformation)
+
+            display_pixmap = QPixmap(self.size())
+            display_pixmap.fill(Qt.transparent)  # Start with a transparent pixmap
+
+            painter = QPainter(display_pixmap)
+            painter.drawPixmap(self.offset.toPoint(), scaled_pixmap)
+            painter.end()
+
+            super().setPixmap(display_pixmap)
+
+    def wheelEvent(self, event):
+        old_scale_factor = self.scale_factor
+
+        if event.angleDelta().y() > 0:
+            self.scale_factor *= 1.1
+        else:
+            self.scale_factor /= 1.1
+
+        mouse_position = event.pos()
+        offset_factor = (self.scale_factor / old_scale_factor) - 1
+        self.offset -= QPointF(mouse_position.x() * offset_factor, mouse_position.y() * offset_factor)
+        self.constrain_offset()
+        self.update_image()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.drag_start_pos = event.pos()
+            self.setCursor(Qt.ClosedHandCursor)
+
+    def mouseMoveEvent(self, event):
+        if self.dragging:
+            delta = event.pos() - self.drag_start_pos
+            self.drag_start_pos = event.pos()
+            self.offset += QPointF(delta)
+            self.constrain_offset()
+            self.update_image()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            self.setCursor(Qt.ArrowCursor)
+
+    def constrain_offset(self):
+        if self._pixmap:
+            transform = QTransform()
+            transform.scale(self.scale_factor, self.scale_factor)
+            scaled_pixmap = self._pixmap.transformed(transform, Qt.SmoothTransformation)
+            scaled_pixmap_rect = QRectF(self.offset, QSizeF(scaled_pixmap.size()))
+
+            label_rect = self.rect()
+
+            if scaled_pixmap_rect.left() > label_rect.left():
+                self.offset.setX(0)
+            elif scaled_pixmap_rect.right() < label_rect.right():
+                self.offset.setX(label_rect.width() - scaled_pixmap.width())
+
+            if scaled_pixmap_rect.top() > label_rect.top():
+                self.offset.setY(0)
+            elif scaled_pixmap_rect.bottom() < label_rect.bottom():
+                self.offset.setY(label_rect.height() - scaled_pixmap.height())
 
 def main():
     app = QApplication([])
