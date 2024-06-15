@@ -1,6 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules 
+from PyInstaller.utils.hooks import collect_data_files
+
 block_cipher = None
 
 hidden_imports = collect_submodules('PIL')
@@ -9,11 +11,12 @@ import os
 import sys
 
 project_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+datas = collect_data_files('assets', includes=['*.ico'])
 
 a = Analysis(['src\\main.py'],
              pathex=[project_dir, os.path.join(project_dir, 'src')], 
              binaries=[],
-             datas=[],  # Include all filesfrom the 'data' folder
+             datas=datas,  # Include all filesfrom the 'data' folder
              hiddenimports=hidden_imports,
              hookspath=[],
              runtime_hooks=[],
@@ -30,11 +33,13 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas, 
           [],
-          name='your_script_name',
+          name='Multiband Imaging',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=False )
+          console=False,
+          icon='icon.ico'
+)

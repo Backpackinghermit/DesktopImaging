@@ -3,7 +3,7 @@ import subprocess
 from PyQt5.QtWidgets import (QMainWindow, QAction, QFileDialog, QLabel, QScrollArea, QMessageBox,
                              QWidget, QHBoxLayout, QVBoxLayout, QFrame, QPushButton, QApplication, 
                              QCheckBox, QSizePolicy, QTabWidget, QStyle )
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import QPixmap, QImage, QIcon
 from PyQt5.QtCore import Qt
 import cv2
 import numpy as np
@@ -22,12 +22,12 @@ from utils.IRFC import run_IRFC_vill
 
 
 
-
 class ImageApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.title = "Conservation Image Processing"
+        self.title = "Multiband Image Processing"
+        self.setWindowIcon(QIcon('icon.ico'))
         self.setGeometry(100, 100, 1500, 800)
         self.scroll_areas = {}  # Store scroll areas
         
@@ -239,6 +239,7 @@ class ImageApp(QMainWindow):
         self.image_label_uvf = QLabel()
         self.image_label_viil = QLabel()
         self.image_label_vis.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
+        self.image_label_uvr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_irr.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_uvf.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
         self.image_label_viil.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
@@ -330,35 +331,42 @@ class ImageApp(QMainWindow):
         file_menu.addAction(save_action)
         
     def update_tab_visibility(self):
-        self.tabs.setTabVisible(0, self.checkbox1.isChecked() and self.image_label_align.pixmap() is not None) 
-        self.tabs.setTabVisible(1, self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
-        self.tabs.setTabVisible(2, self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
-        self.tabs.setTabVisible(3, self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None) # UVR tab visibility
-        self.tabs.setTabVisible(4, self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
         label_mapping = {
             "IRR": self.image_label_irr,
             "VIIL": self.image_label_viil,
             "UVR": self.image_label_uvr,
             "UVF": self.image_label_uvf,
             "Vis": self.image_label_vis,
+            "IRFC": self.image_label_irfc,
+            "IRFCIRR": self.image_label_irfcirr,
+            "UVFC": self.image_label_uvfc,
+            "Multiband": self.image_label_multiband
         }
 
+        # Hide all tabs initially
+        for index in range(self.tabs.count()):
+            self.tabs.setTabVisible(index, False)
+
+        # Show tabs with images
         for image_type, image_path in self.registered_images.items():
-            if image_path is not None:  # Only process if the image exists (registration may have failed)
+            if image_path:
                 image_label = label_mapping.get(image_type)
                 if image_label:
                     self.display_image_in_tab(image_path, image_label)  # Populate the existing label
-
                     # Make the tab visible
-                    tab_index = self.tabs.indexOf(image_label.parent())
+                    tab_index = self.tabs.indexOf(image_label.parent().parent())
                     self.tabs.setTabVisible(tab_index, True)
                 else:
                     print(f"Image label not found for {image_type}")
-        self.tabs.setTabVisible(5, self.checkbox1.isChecked() and self.image_label_irr.pixmap() is not None) 
-        self.tabs.setTabVisible(6, self.checkbox1.isChecked() and self.image_label_uvf.pixmap() is not None) 
-        self.tabs.setTabVisible(7, self.checkbox1.isChecked() and self.image_label_viil.pixmap() is not None) 
-        self.tabs.setTabVisible(8, self.checkbox1.isChecked() and self.image_label_vis.pixmap() is not None) 
-               
+
+        # Ensure specific tabs are shown based on checkboxes and image presence
+        self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_align.parent().parent()), self.checkbox1.isChecked() and self.image_label_align.pixmap() is not None)
+        self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_irfc.parent().parent()), self.checkbox2.isChecked() and self.image_label_irfc.pixmap() is not None)
+        self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_irfcirr.parent().parent()), self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
+        self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_uvfc.parent().parent()), self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None)
+        self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_multiband.parent().parent()), self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
+
+                
     def clear_tabs(self):
         # Set visibility of all tabs except "Processed Images" to False
         for i in range(self.tabs.count()):
@@ -527,15 +535,17 @@ class ImageApp(QMainWindow):
                 self.add_thumbnail(image_type, file_path)
 
     def display_image_in_tab(self, image_path, label):
-        image = QImage(image_path)
-        pixmap = QPixmap.fromImage(image)
-        scaled_pixmap = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        if pixmap.isNull():
-            print(f"Failed to load image: {image_path}")  
-            return
-        label.setPixmap(scaled_pixmap)
-        label.setAlignment(Qt.AlignCenter)
-        label.update()
+        if image_path:
+            image = QImage(image_path)
+            pixmap = QPixmap.fromImage(image)
+            scaled_pixmap = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            if pixmap.isNull():
+                print(f"Failed to load image: {image_path}")
+                return
+            label.setPixmap(scaled_pixmap)
+            label.setAlignment(Qt.AlignCenter)
+            label.update()
+
 
     def resizeEvent(self, event):
             super().resizeEvent(event)
@@ -617,6 +627,7 @@ class ImageApp(QMainWindow):
 
 def main():
     app = QApplication([])
+    app.setWindowIcon(QIcon('icon.ico'))  # Set the taskbar icon
     window = ImageApp()
     window.show()
     app.exec_()
