@@ -531,6 +531,7 @@ class ImageApp(QMainWindow):
             if file_path:
                 self.add_thumbnail(image_type, file_path)
 
+    
     def display_image_in_tab(self, image_path, label):
         if image_path:
             pixmap = QPixmap(image_path)
@@ -691,15 +692,25 @@ class ZoomableLabel(QLabel):
 
             label_rect = self.rect()
 
-            if scaled_pixmap_rect.left() > label_rect.left():
-                self.offset.setX(0)
-            elif scaled_pixmap_rect.right() < label_rect.right():
-                self.offset.setX(label_rect.width() - scaled_pixmap.width())
+            # Centering logic when zooming out
+            if scaled_pixmap_rect.width() < label_rect.width():
+                self.offset.setX((label_rect.width() - scaled_pixmap.width()) / 2)
+            else:
+                if scaled_pixmap_rect.left() > label_rect.left():
+                    self.offset.setX(0)
+                elif scaled_pixmap_rect.right() < label_rect.right():
+                    self.offset.setX(label_rect.width() - scaled_pixmap.width())
 
-            if scaled_pixmap_rect.top() > label_rect.top():
-                self.offset.setY(0)
-            elif scaled_pixmap_rect.bottom() < label_rect.bottom():
-                self.offset.setY(label_rect.height() - scaled_pixmap.height())
+            if scaled_pixmap_rect.height() < label_rect.height():
+                self.offset.setY((label_rect.height() - scaled_pixmap.height()) / 2)
+            else:
+                if scaled_pixmap_rect.top() > label_rect.top():
+                    self.offset.setY(0)
+                elif scaled_pixmap_rect.bottom() < label_rect.bottom():
+                    self.offset.setY(label_rect.height() - scaled_pixmap.height())
+
+            self.update_image()
+
 
 def main():
     app = QApplication([])
