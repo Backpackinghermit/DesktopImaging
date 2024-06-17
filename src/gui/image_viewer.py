@@ -35,9 +35,10 @@ class ImageApp(QMainWindow):
         self.pixmap = None
 
         self.selected_images = {"Vis": None, "IRR": None, "VIIL": None, "UVR": None, "UVF": None}
-        self.registered_images = {"Vis": None, "IRR": None, "VIIL": None, "UVR": None, "UVF": None}
+        self.registered_images = {"Vis": None, "Aligned Vis": None, "Aligned IRR": None, "Aligned VIIL": None, "Aligned UVR": None, "Aligned UVF": None}
 
-        self.image_order = ["UVR", "UVF", "Vis", "IRR", "VIIL"]
+        self.image_order = ["UVR", "UVF", "Vis",  "IRR", "VIIL", "Aligned UVR", "Aligned UVF", "Aligned IRR", "Aligned VIIL", "Processed Images"]
+
 
         self.init_ui()
 
@@ -239,11 +240,17 @@ class ImageApp(QMainWindow):
         self.image_label_irr = ZoomableLabel()
         self.image_label_uvf = ZoomableLabel()
         self.image_label_viil = ZoomableLabel()
+        self.image_label_Reguvr = ZoomableLabel()
+        self.image_label_Regirr = ZoomableLabel()
+        self.image_label_Reguvf = ZoomableLabel()
+        self.image_label_Regviil = ZoomableLabel()
+        
 
         # Apply the same stylesheet settings to each ZoomableLabel
         for label in [self.image_label_align, self.image_label_irfc, self.image_label_irfcirr, self.image_label_uvfc,
                     self.image_label_processed, self.image_label_multiband, self.image_label_vis, self.image_label_uvr,
-                    self.image_label_irr, self.image_label_uvf, self.image_label_viil]:
+                    self.image_label_irr, self.image_label_uvf, self.image_label_viil, self.image_label_Reguvr,
+                    self.image_label_Regirr, self.image_label_Reguvf, self.image_label_Regviil]:
             label.setStyleSheet("background-color: white; border-top-left-radius: 0px;")
 
         self.tabs.setStyleSheet("""
@@ -273,16 +280,20 @@ class ImageApp(QMainWindow):
          # Initialize tabs and set initial order
         self.init_tab(self.image_label_align, "Align")
         self.init_tab(self.image_label_vis, "Visible")
-        self.init_tab(self.image_label_uvf, "UVF")
-        self.init_tab(self.image_label_uvr, "UVR")
-        self.init_tab(self.image_label_irr, "IRR")
-        self.init_tab(self.image_label_viil, "VIIL")
+        self.init_tab(self.image_label_Reguvf, "Aligned UVF")
+        self.init_tab(self.image_label_Reguvr, "Aligned UVR")
+        self.init_tab(self.image_label_Regirr, "Aligned IRR")
+        self.init_tab(self.image_label_Regviil, "Aligned VIIL")
         self.init_tab(self.image_label_irfc, "IRFC (VIIL)")
         self.init_tab(self.image_label_irfcirr, "IRFC (IRR)")
         self.init_tab(self.image_label_uvfc, "UVFC")
         self.init_tab(self.image_label_multiband, ("Multiband"))
         self.init_tab(self.image_label_processed, "Processed Images")
-        self.init_tab(self.image_label_processed, "Processed Images") 
+        self.init_tab(self.image_label_uvf, "UVF")
+        self.init_tab(self.image_label_uvr, "UVR")
+        self.init_tab(self.image_label_irr, "IRR")
+        self.init_tab(self.image_label_viil, "VIIL")
+       
 
         # Move the layout widget insertion here
         bottom_row_layout.addWidget(self.tabs)
@@ -333,6 +344,10 @@ class ImageApp(QMainWindow):
             "VIIL": self.image_label_viil,
             "UVR": self.image_label_uvr,
             "UVF": self.image_label_uvf,
+            "Aligned IRR": self.image_label_Regirr,
+            "Aligned VIIL": self.image_label_Regviil,
+            "Aligned UVR": self.image_label_Reguvr,
+            "Aligned UVF": self.image_label_Reguvf,
             "Vis": self.image_label_vis,
             "IRFC": self.image_label_irfc,
             "IRFCIRR": self.image_label_irfcirr,
@@ -362,6 +377,28 @@ class ImageApp(QMainWindow):
         self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_irfcirr.parent().parent()), self.checkbox3.isChecked() and self.image_label_irfcirr.pixmap() is not None)
         self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_uvfc.parent().parent()), self.checkbox4.isChecked() and self.image_label_uvfc.pixmap() is not None)
         self.tabs.setTabVisible(self.tabs.indexOf(self.image_label_multiband.parent().parent()), self.checkbox6.isChecked() and self.image_label_multiband.pixmap() is not None)
+    
+    def thumbnail_clicked(self, image_path, image_type):
+        # Check if a tab already exists for this image_type
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i) == image_type:
+                self.tabs.setCurrentIndex(i)  # Switch to the tab if it already exists
+                return
+
+        # If no tab exists, create a new tab
+        new_label = ZoomableLabel()
+        new_label.setStyleSheet("background-color: white;")
+        self.display_image_in_tab(image_path, new_label)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(new_label)
+        scroll_area.setWidgetResizable(True)
+
+        self.tabs.addTab(scroll_area, image_type)
+        self.tabs.setCurrentWidget(scroll_area)
+
+        
+
 
                 
     def clear_tabs(self):
@@ -412,6 +449,7 @@ class ImageApp(QMainWindow):
     def add_thumbnail(self, image_type, image_path):
         widget = QWidget()
         layout = QVBoxLayout()
+        
 
         # Create QLabel for image
         image_label = QLabel()
@@ -426,13 +464,14 @@ class ImageApp(QMainWindow):
 
         widget.setLayout(layout)
         self.thumbnail_container.addWidget(widget)
+        
 
     def process_images(self):
         output_path = "output"  # Define the output path
         if not os.path.exists(output_path):
             os.makedirs(output_path)
             
-        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)   
+        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)
 
         vis_image_path = self.selected_images.get("Vis")
         
@@ -457,10 +496,8 @@ class ImageApp(QMainWindow):
                         )
                         
                         if registered_image_path:  # Check if registration was successful
-                            self.registered_images[image_type] = registered_image_path
-                            
+                            self.registered_images[f"Aligned {image_type}"] = registered_image_path
                             print(self.registered_images)
-
                         else:
                             print(f"Image registration failed for {image_type}")
                     except Exception as e:
@@ -468,9 +505,9 @@ class ImageApp(QMainWindow):
                         
         if self.checkbox2.isChecked():
             if self.checkbox1.isChecked():
-                viil_image_path = self.registered_images["VIIL"]
+                viil_image_path = self.registered_images.get("Aligned VIIL")
             else:
-                viil_image_path = self.selected_images["VIIL"]
+                viil_image_path = self.selected_images.get("VIIL")
 
             # Debug print to check the paths
             print(f"vis_image_path: {vis_image_path}")
@@ -482,32 +519,31 @@ class ImageApp(QMainWindow):
                 self.display_image_in_tab(output_path_irfc, self.image_label_irfc)
             else:
                 print(f"Error during IRFC: {error_message}")
-                            
+                                
         if self.checkbox3.isChecked():
-                if self.checkbox1.isChecked():
-                    irr_image_path = self.registered_images["IRR"]
-                else:
-                    irr_image_path = self.selected_images["IRR"]
-                    
-                output_path_irfcirr, error_message = run_IRFC_irr(vis_image_path, irr_image_path, output_path)
-                if output_path_irfcirr:
-                    self.display_image_in_tab(output_path_irfcirr, self.image_label_irfcirr)
-                else:
-                    print(f"Error during IRFC: {error_message}")
-                    
+            if self.checkbox1.isChecked():
+                irr_image_path = self.registered_images.get("Aligned IRR")
+            else:
+                irr_image_path = self.selected_images.get("IRR")
+                
+            output_path_irfcirr, error_message = run_IRFC_irr(vis_image_path, irr_image_path, output_path)
+            if output_path_irfcirr:
+                self.display_image_in_tab(output_path_irfcirr, self.image_label_irfcirr)
+            else:
+                print(f"Error during IRFC: {error_message}")
+                        
         if self.checkbox4.isChecked():
-                if self.checkbox1.isChecked():
-                    uvr_image_path = self.registered_images["UVR"]
-                else:
-                    uvr_image_path = self.selected_images["UVR"]
-                    
-                output_path_uvr, error_message = run_UVFC(vis_image_path, uvr_image_path, output_path)
-                if output_path_uvr:
-                    self.display_image_in_tab(output_path_uvr, self.image_label_uvfc)
-                else:
-                    print(f"Error during IRFC: {error_message}")
-                    
-       
+            if self.checkbox1.isChecked():
+                uvr_image_path = self.registered_images.get("Aligned UVR")
+            else:
+                uvr_image_path = self.selected_images.get("UVR")
+                
+            output_path_uvr, error_message = run_UVFC(vis_image_path, uvr_image_path, output_path)
+            if output_path_uvr:
+                self.display_image_in_tab(output_path_uvr, self.image_label_uvfc)
+            else:
+                print(f"Error during IRFC: {error_message}")
+
         if self.checkbox6.isChecked():
             vis_image_path = output_vis_image_path  # Ensure this is defined or passed correctly
             output_tiff_path = os.path.join(output_path, f"multiband_{os.path.basename(vis_image_path)}")
@@ -517,8 +553,8 @@ class ImageApp(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
         
-        
         self.update_tab_visibility()
+
 
     def reorder_thumbnails(self):
         for i in reversed(range(self.thumbnail_container.count())):
@@ -527,9 +563,15 @@ class ImageApp(QMainWindow):
                 widget.deleteLater()
 
         for image_type in self.image_order:
-            file_path = self.selected_images[image_type]
+            # Handle selected_images
+            file_path = self.selected_images.get(image_type)
             if file_path:
                 self.add_thumbnail(image_type, file_path)
+
+            # Handle registered_images
+            registered_path = self.registered_images.get(image_type)
+            if registered_path:
+                self.add_thumbnail(image_type, registered_path)
 
     
     def display_image_in_tab(self, image_path, label):
@@ -541,9 +583,9 @@ class ImageApp(QMainWindow):
 
             # Set the pixmap to the ZoomableLabel with initial scaling
             label.set_initial_pixmap(pixmap)
-            label.setAlignment(Qt.AlignCenter)
             label.update()
-
+            label.setAlignment(Qt.AlignCenter)
+            
     def resizeEvent(self, event):
             super().resizeEvent(event)
             for i in range(self.tabs.count()):
@@ -561,7 +603,32 @@ class ImageApp(QMainWindow):
             self.registered_images = {}
             self.update_thumbnails()
             self.clear_tabs()
-      
+            self.update_tab_visibility
+    
+    def thumbnail_clicked(self, event, image_path, image_type):
+        if image_path:
+            self.selected_images[image_type] = image_path
+            self.update_thumbnails()
+     # Check if a tab already exists for this image_type
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i) == image_type:
+                self.tabs.setCurrentIndex(i)  # Switch to the tab if it already exists
+                return
+
+        # If no tab exists, create a new tab
+        new_label = QLabel()
+        new_label.setStyleSheet("background-color: white;")
+        self.display_image_in_tab(image_path, new_label)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(new_label)
+        scroll_area.setWidgetResizable(True)
+        
+        self.tabs.addTab(scroll_area, image_type)
+        self.tabs.setCurrentWidget(scroll_area)
+        self.update_tab_visibility()
+
+            
     def save_multiband_tiff(self):
         if not all(self.registered_images.values()):
             QMessageBox.warning(self, "Warning", "Please process all images before saving.")
@@ -583,9 +650,15 @@ class ImageApp(QMainWindow):
             if widget is not None:
                 widget.deleteLater()
 
-        # Add thumbnails for each image type
-        for image_type in self.image_order:
+        # Add thumbnails for each image type in selected_images
+        for image_type in self.selected_images:
             file_path = self.selected_images[image_type]
+            if file_path:
+                self.add_thumbnail(image_type, file_path)
+
+        # Add thumbnails for each image type in registered_images
+        for image_type in self.registered_images:
+            file_path = self.registered_images[image_type]
             if file_path:
                 self.add_thumbnail(image_type, file_path)
 
