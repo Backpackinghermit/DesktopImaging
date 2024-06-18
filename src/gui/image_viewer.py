@@ -2,7 +2,7 @@ import os
 import subprocess
 from PyQt5.QtWidgets import (QMainWindow, QAction, QFileDialog, QLabel, QScrollArea, QMessageBox,
                              QWidget, QHBoxLayout, QVBoxLayout, QFrame, QPushButton, QApplication, 
-                             QCheckBox, QSizePolicy, QTabWidget, QStyle )
+                            QCheckBox, QSizePolicy, QTabWidget, QStyle, QAbstractSlider, QSlider )
 from PyQt5.QtGui import QPixmap, QImage, QIcon, QTransform, QPainter, QColor
 from PyQt5.QtCore import Qt, QPoint, QPointF, QRectF, QSizeF
 import cv2
@@ -31,6 +31,7 @@ class ImageApp(QMainWindow):
         self.setGeometry(100, 100, 1500, 800)
         self.scroll_areas = {}  # Store scroll areas
         
+        
 
         self.pixmap = None
 
@@ -45,11 +46,14 @@ class ImageApp(QMainWindow):
     def init_ui(self):
         self.setWindowTitle(self.title)
         
+        
+        
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
     
         main_layout = QVBoxLayout(central_widget)
         central_widget.setStyleSheet("background-color: #d3d3d3;")
+        
 
         top_row = QFrame()
         top_row.setFrameShape(QFrame.StyledPanel)
@@ -220,14 +224,6 @@ class ImageApp(QMainWindow):
         """)
 
         main_layout.addWidget(scroll_area)
-
-        bottom_row = QFrame()
-        bottom_row.setFrameShape(QFrame.StyledPanel)
-        bottom_row_layout = QHBoxLayout(bottom_row)
-        bottom_row.setStyleSheet("background-color: #d3d3d3; border: 0px; border-radius: 20px")
-               
-
-        
         self.tabs = QTabWidget()
         self.image_label_align = ZoomableLabel()
         self.image_label_irfc = ZoomableLabel()
@@ -293,36 +289,90 @@ class ImageApp(QMainWindow):
         self.init_tab(self.image_label_uvr, "UVR")
         self.init_tab(self.image_label_irr, "IRR")
         self.init_tab(self.image_label_viil, "VIIL")
-       
 
-        # Move the layout widget insertion here
+        bottom_row = QFrame()
+        bottom_row.setFrameShape(QFrame.StyledPanel)
+        bottom_row_layout = QHBoxLayout(bottom_row)
+        bottom_row.setStyleSheet("border: 0px; border-radius: 20px")
+        
+        # Additional Column (Newly Added)
+        additional_column = QWidget()
+        additional_column_layout = QVBoxLayout(additional_column)
+        additional_column.setMaximumWidth(200)
+        additional_column_layout.setAlignment(Qt.AlignCenter)
+        additional_column.setStyleSheet("background-color: lightblue;")  # Adjust styling as needed
+
+        # Example: Adding widgets to the additional column
+        label = QLabel("Data")
+        
+        label.setAlignment(Qt.AlignCenter)
+        labelSliders = QLabel("Edit")
+        labelSliders.setAlignment(Qt.AlignCenter)
+        label2 = QLabel("Contrast")
+        label2.setAlignment(Qt.AlignCenter)
+        
+        histogram = QFrame()  # Example histogram widget
+        histogram_layout = QVBoxLayout(histogram)
+        histogram_layout.addWidget(label)
+        histogram.setStyleSheet("background-color: white; border-radius: 5px;")  # Adjust styling as needed
+        histogram.setFixedSize(150, 150)  # Adjust the size as needed
+        
+      
+        # Layout setup
+        layout = QVBoxLayout()  # Example layout
+        slider_group = CustomSlider()
+
+        
+
+        additional_column_layout.addWidget(label)
+        additional_column_layout.addWidget(histogram)
+        additional_column_layout.addWidget(labelSliders)
+        additional_column_layout.addWidget(slider_group.get_slider1())
+        additional_column_layout.addWidget(label2)
+        
+        
+        
+        additional_column_layout.addStretch(1) 
+
+        # Placeholder for future histograms or other functionalities
+
+        bottom_row_layout.addWidget(additional_column)
         bottom_row_layout.addWidget(self.tabs)
         
-        right_column = QFrame()
-        right_column.setFrameShape(QFrame.StyledPanel)
-        right_column_layout = QVBoxLayout(right_column)
-        right_column.setStyleSheet("border: 0px;")
-
+        
+        # Checkbox Column
+        checkbox_column = QWidget()
+        checkbox_column_layout = QVBoxLayout(checkbox_column)
+        checkbox_column.setStyleSheet("background-color: lightblue")  # Adjust styling as needed
+        
+        label = QLabel("Processing Options")
+        checkbox_column_layout.addWidget(label)
+        
+        
         self.checkbox1 = QCheckBox("Align")
         self.checkbox2 = QCheckBox("IRFC (VIIL)")
         self.checkbox3 = QCheckBox("IRFC (IRR)")
         self.checkbox4 = QCheckBox("UVFC")
         self.checkbox5 = QCheckBox("MBRS")
         self.checkbox6 = QCheckBox("Multiband TIFF")
+        
 
-        right_column_layout.addWidget(self.checkbox1)
-        right_column_layout.addWidget(self.checkbox2)
-        right_column_layout.addWidget(self.checkbox3)
-        right_column_layout.addWidget(self.checkbox4)
-        right_column_layout.addWidget(self.checkbox5)
-        right_column_layout.addWidget(self.checkbox6)
+        checkbox_column_layout.addWidget(self.checkbox1)
+        checkbox_column_layout.addWidget(self.checkbox2)
+        checkbox_column_layout.addWidget(self.checkbox3)
+        checkbox_column_layout.addWidget(self.checkbox4)
+        checkbox_column_layout.addWidget(self.checkbox5)
+        checkbox_column_layout.addWidget(self.checkbox6)
+        
 
         process_button = QPushButton("Process")
         process_button.setStyleSheet("border-radius: 5px; background-color: white; padding: 10px;")
         process_button.clicked.connect(self.process_images)
-        right_column_layout.addWidget(process_button)
-
-        bottom_row_layout.addWidget(right_column)
+        checkbox_column_layout.addWidget(process_button)
+        checkbox_column_layout.addStretch(1)
+        
+        bottom_row_layout.addWidget(checkbox_column)
+        
         main_layout.addWidget(bottom_row)
         
         menubar = self.menuBar()
@@ -337,6 +387,8 @@ class ImageApp(QMainWindow):
         file_menu.addAction(clear_action)
         file_menu.addAction(exit_action)
         file_menu.addAction(save_action)
+        
+    
         
     def update_tab_visibility(self):
         label_mapping = {
@@ -396,11 +448,7 @@ class ImageApp(QMainWindow):
 
         self.tabs.addTab(scroll_area, image_type)
         self.tabs.setCurrentWidget(scroll_area)
-
-        
-
-
-                
+   
     def clear_tabs(self):
         # Set visibility of all tabs except "Processed Images" to False
         for i in range(self.tabs.count()):
@@ -783,6 +831,22 @@ class ZoomableLabel(QLabel):
                     self.offset.setY(label_rect.height() - scaled_pixmap.height())
 
             self.update_image()
+
+class CustomSlider:
+    def __init__(self):
+        self.slider1 = QSlider(Qt.Horizontal)
+        self.slider2 = QSlider(Qt.Horizontal)
+        # ... other slider initialization
+        for slider in [self.slider1, self.slider2]:
+            slider.setMinimum(0)
+            slider.setMaximumWidth(150)
+            slider.setMaximum(10)
+
+    def get_slider1(self):
+        return self.slider1
+
+    def get_slider2(self):
+        return self.slider2
 
 
 def main():

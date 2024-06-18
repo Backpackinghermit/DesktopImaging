@@ -66,7 +66,7 @@ def run_IRFC_vill(image_path, viil_image_path, output_folder="output"):
             
             # Split images into RGB channels
             r, g, b = img.split()
-            _, viil_g, _ = viil_img.split()  # Only use the green channel from UVR
+            _, viil_g, _ = viil_img.split()  # Only use the green channel from VIIL
 
             # Perform channel swapping
             swapped_image = Image.merge("RGB", (viil_g, r, g))
