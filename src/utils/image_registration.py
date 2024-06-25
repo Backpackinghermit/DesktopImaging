@@ -88,7 +88,6 @@ def perform_image_registration(vis_image_path, ir_image_path, output_path, image
         print("Image registration failed, trying broader parameters:", e)
         return registration_broad(vis_image_path, ir_image_path, output_path, image_type) #try broad parameters
 
-
 def registration_broad(vis_image_path, ir_image_path, output_path, image_type):
     try:
         print("Starting registration...")
@@ -117,10 +116,10 @@ def registration_broad(vis_image_path, ir_image_path, output_path, image_type):
         # Filter out poor matches
         good_matches = []
         for m, n in matches:
-            if m.distance < 0.50 * n.distance:
+            if m.distance < 0.40 * n.distance:
                 good_matches.append(m)
 
-        if len(good_matches) < 20:  # Adjust the threshold as needed
+        if len(good_matches) < 30:  # Adjust the threshold as needed
             raise Exception("Insufficient keypoints for registration")
 
         matches = good_matches
@@ -186,11 +185,11 @@ def mutual_information_registration(vis_image_path, ir_image_path, output_path, 
         registration_method = sitk.ImageRegistrationMethod()
 
         # Set the similarity metric
-        registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=300)
+        registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=400)
 
         # Set the optimizer
-        registration_method.SetOptimizerAsGradientDescent(learningRate=0.01, numberOfIterations=400, convergenceMinimumValue=1e-6, convergenceWindowSize=10)
-
+        registration_method.SetOptimizerAsGradientDescent(learningRate=0.001, numberOfIterations=500, convergenceMinimumValue=1e-7, convergenceWindowSize=5)
+    
         # Set the initial transform
         initial_transform = sitk.CenteredTransformInitializer(img2_sitk, img1_sitk, sitk.Euler2DTransform(), sitk.CenteredTransformInitializerFilter.GEOMETRY)
         registration_method.SetInitialTransform(initial_transform, inPlace=False)
