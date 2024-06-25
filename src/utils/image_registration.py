@@ -13,6 +13,9 @@ def perform_image_registration(vis_image_path, ir_image_path, output_path, image
         # Load images
         img2 = cv.imread(vis_image_path, cv.IMREAD_GRAYSCALE)  # referenceImage
         img1 = cv.imread(ir_image_path, cv.IMREAD_GRAYSCALE)  # sensedImage
+        
+        # Invert the color of the infrared image (img1)
+        img1 = cv.bitwise_not(img1)
 
         # Resize the images
         resize_factor = 1.0 / 4.0
@@ -72,10 +75,13 @@ def perform_image_registration(vis_image_path, ir_image_path, output_path, image
             scale_down_h_scale_up,
             (img2.shape[1], img2.shape[0])
         )
+        
+        img1_registered = cv.bitwise_not(img1Reg)
+
 
         # Save the processed image
         print("Registration successful.")
-        cv.imwrite(filename, img1Reg)
+        cv.imwrite(filename, img1_registered)
         return filename
 
     except Exception as e:
@@ -159,17 +165,14 @@ def registration_broad(vis_image_path, ir_image_path, output_path, image_type):
 
     except Exception as e:
         print(f"Image registration failed with broader parameters for {image_type}:", e)
-        print("Saving input image to output directory and returning its path...")
+        print("Trying mutual information-based registration")
 
-        # Save the input image to the output directory with a prefix (e.g., "unregistered_")
-        unregistered_filename = os.path.join(output_path, f"unregistered_{image_type}_{os.path.basename(ir_image_path)}")
-        cv.imwrite(unregistered_filename, img1) 
+        return mutual_information_registration(vis_image_path, ir_image_path, output_path, image_type) #try broad parameters
 
-        return unregistered_filename  # Return the path of the saved unregistered image
-
-def mutual_information_registration(vis_image_path, ir_image_path, output_path):
+def mutual_information_registration(vis_image_path, ir_image_path, output_path, image_type):
     try:
         print("Starting mutual information-based registration...")
+        filename = os.path.join(output_path, f"registered_{image_type}_{os.path.basename(ir_image_path)}")
 
         # Load images
         img2 = cv.imread(vis_image_path, cv.IMREAD_GRAYSCALE)  # referenceImage
@@ -183,10 +186,10 @@ def mutual_information_registration(vis_image_path, ir_image_path, output_path):
         registration_method = sitk.ImageRegistrationMethod()
 
         # Set the similarity metric
-        registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+        registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=300)
 
         # Set the optimizer
-        registration_method.SetOptimizerAsGradientDescent(learningRate=1.0, numberOfIterations=100, convergenceMinimumValue=1e-6, convergenceWindowSize=10)
+        registration_method.SetOptimizerAsGradientDescent(learningRate=0.01, numberOfIterations=400, convergenceMinimumValue=1e-6, convergenceWindowSize=10)
 
         # Set the initial transform
         initial_transform = sitk.CenteredTransformInitializer(img2_sitk, img1_sitk, sitk.Euler2DTransform(), sitk.CenteredTransformInitializerFilter.GEOMETRY)
@@ -202,10 +205,11 @@ def mutual_information_registration(vis_image_path, ir_image_path, output_path):
         img1_registered = sitk.GetArrayFromImage(img1_registered_sitk)
 
         # Save the processed image
-        cv.imwrite(os.path.join(output_path, 'registered_mi.jpg'), img1_registered)
+        cv.imwrite(filename, img1_registered)
 
         print("Mutual information-based registration successful.")
-        return img1_registered
+        
+        return filename
 
     except Exception as e:
         print("Mutual information-based registration failed:", e)

@@ -2,7 +2,7 @@ import os
 import subprocess
 from PyQt5.QtWidgets import (QMainWindow, QAction, QFileDialog, QLabel, QScrollArea, QMessageBox,
                              QWidget, QHBoxLayout, QVBoxLayout, QFrame, QPushButton, QApplication, 
-                            QCheckBox, QSizePolicy, QTabWidget, QStyle, QAbstractSlider, QSlider )
+                            QCheckBox, QSizePolicy, QTabWidget, QStyle, QAbstractSlider, QSlider, QGridLayout, QLineEdit, QFileDialog )
 from PyQt5.QtGui import QPixmap, QImage, QIcon, QTransform, QPainter, QColor
 from PyQt5.QtCore import Qt, QPoint, QPointF, QRectF, QSizeF
 import cv2
@@ -18,7 +18,12 @@ from utils.irfcirr import run_IRFC_irr
 from utils.uvfc import run_UVFC
 from gui import image_viewer
 from utils.create_mbtiff import create_multiband_tiff
-from utils.IRFC import run_IRFC_vill
+from utils.process_images import process_images
+from utils.histogram import calculate_histogram
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+
 
 
 
@@ -30,6 +35,7 @@ class ImageApp(QMainWindow):
         self.setWindowIcon(QIcon('icon.ico'))
         self.setGeometry(100, 100, 1500, 800)
         self.scroll_areas = {}  # Store scroll areas
+        spectral_data = {}
         
         
 
@@ -45,8 +51,7 @@ class ImageApp(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle(self.title)
-        
-        
+        self.spectral_data = {}        
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -54,7 +59,6 @@ class ImageApp(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         central_widget.setStyleSheet("background-color: #d3d3d3;")
         
-
         top_row = QFrame()
         top_row.setFrameShape(QFrame.StyledPanel)
         top_row_layout = QHBoxLayout(top_row)
@@ -308,14 +312,18 @@ class ImageApp(QMainWindow):
         label.setAlignment(Qt.AlignCenter)
         labelSliders = QLabel("Edit")
         labelSliders.setAlignment(Qt.AlignCenter)
-        label2 = QLabel("Contrast")
+        label2 = QLabel("Edit Functions")
         label2.setAlignment(Qt.AlignCenter)
         
+
         histogram = QFrame()  # Example histogram widget
         histogram_layout = QVBoxLayout(histogram)
         histogram_layout.addWidget(label)
         histogram.setStyleSheet("background-color: white; border-radius: 5px;")  # Adjust styling as needed
         histogram.setFixedSize(150, 150)  # Adjust the size as needed
+
+        
+        
         
       
         # Layout setup
@@ -324,10 +332,10 @@ class ImageApp(QMainWindow):
 
         
 
-        additional_column_layout.addWidget(label)
-        additional_column_layout.addWidget(histogram)
-        additional_column_layout.addWidget(labelSliders)
-        additional_column_layout.addWidget(slider_group.get_slider1())
+        #additional_column_layout.addWidget(label)
+        #additional_column_layout.addWidget(histogram)
+        #additional_column_layout.addWidget(labelSliders)
+        #additional_column_layout.addWidget(slider_group.get_slider1())
         additional_column_layout.addWidget(label2)
         
         
@@ -361,13 +369,13 @@ class ImageApp(QMainWindow):
         checkbox_column_layout.addWidget(self.checkbox2)
         checkbox_column_layout.addWidget(self.checkbox3)
         checkbox_column_layout.addWidget(self.checkbox4)
-        checkbox_column_layout.addWidget(self.checkbox5)
+        #checkbox_column_layout.addWidget(self.checkbox5)
         checkbox_column_layout.addWidget(self.checkbox6)
         
 
         process_button = QPushButton("Process")
         process_button.setStyleSheet("border-radius: 5px; background-color: white; padding: 10px;")
-        process_button.clicked.connect(self.process_images)
+        process_button.clicked.connect(lambda: self.process_images())
         checkbox_column_layout.addWidget(process_button)
         checkbox_column_layout.addStretch(1)
         
@@ -387,8 +395,7 @@ class ImageApp(QMainWindow):
         file_menu.addAction(clear_action)
         file_menu.addAction(exit_action)
         file_menu.addAction(save_action)
-        
-    
+   
         
     def update_tab_visibility(self):
         label_mapping = {
@@ -512,97 +519,29 @@ class ImageApp(QMainWindow):
 
         widget.setLayout(layout)
         self.thumbnail_container.addWidget(widget)
-        
-
+    
     def process_images(self):
-        output_path = "output"  # Define the output path
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
+        selected_images = self.selected_images
+        checkboxes = {
+            'checkbox1': self.checkbox1.isChecked(),
+            'checkbox2': self.checkbox2.isChecked(),
+            'checkbox3': self.checkbox3.isChecked(),
+            'checkbox4': self.checkbox4.isChecked(),
+            'checkbox6': self.checkbox6.isChecked()
+        }
+        registered_images = self.registered_images
+
+        def display_image_callback(image_path, label_name):
+            self.display_image_in_tab(image_path, getattr(self, label_name))
+
+        process_images(
+            selected_images,
+            checkboxes,
+            registered_images,
+            display_image_callback,
+            self.update_tab_visibility,
             
-        self.tabs.setTabVisible(self.tabs.indexOf(self.scroll_areas["Processed Images"]), False)
-
-        vis_image_path = self.selected_images.get("Vis")
-        
-        if vis_image_path:
-            try:
-                # Load and save the visible image
-                vis_image = Image.open(vis_image_path)
-                output_vis_image_path = os.path.join(output_path, f"Vis_{os.path.basename(vis_image_path)}")
-                vis_image.save(output_vis_image_path)
-                self.registered_images["Vis"] = output_vis_image_path  # Update for consistency
-                self.display_image_in_tab(output_vis_image_path, self.image_label_vis)
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Visible image not found at: {vis_image_path}")
-
-        if self.checkbox1.isChecked():
-            for image_type, image_path in self.selected_images.items():
-                if image_type != "Vis" and image_path:
-                    try:
-                        # Get the registered image path from the function
-                        registered_image_path = perform_image_registration(
-                            vis_image_path, image_path, output_path, image_type
-                        )
-                        
-                        if registered_image_path:  # Check if registration was successful
-                            self.registered_images[f"Aligned {image_type}"] = registered_image_path
-                            print(self.registered_images)
-                        else:
-                            print(f"Image registration failed for {image_type}")
-                    except Exception as e:
-                        print(f"Image registration failed for {image_type}: {str(e)}")
-                        
-        if self.checkbox2.isChecked():
-            if self.checkbox1.isChecked():
-                viil_image_path = self.registered_images.get("Aligned VIIL")
-            else:
-                viil_image_path = self.selected_images.get("VIIL")
-
-            # Debug print to check the paths
-            print(f"vis_image_path: {vis_image_path}")
-            print(f"viil_image_path: {viil_image_path}")
-
-            output_path_irfc, error_message = run_IRFC_vill(vis_image_path, viil_image_path, output_path)
-            
-            if output_path_irfc:
-                self.display_image_in_tab(output_path_irfc, self.image_label_irfc)
-            else:
-                print(f"Error during IRFC: {error_message}")
-                                
-        if self.checkbox3.isChecked():
-            if self.checkbox1.isChecked():
-                irr_image_path = self.registered_images.get("Aligned IRR")
-            else:
-                irr_image_path = self.selected_images.get("IRR")
-                
-            output_path_irfcirr, error_message = run_IRFC_irr(vis_image_path, irr_image_path, output_path)
-            if output_path_irfcirr:
-                self.display_image_in_tab(output_path_irfcirr, self.image_label_irfcirr)
-            else:
-                print(f"Error during IRFC: {error_message}")
-                        
-        if self.checkbox4.isChecked():
-            if self.checkbox1.isChecked():
-                uvr_image_path = self.registered_images.get("Aligned UVR")
-            else:
-                uvr_image_path = self.selected_images.get("UVR")
-                
-            output_path_uvr, error_message = run_UVFC(vis_image_path, uvr_image_path, output_path)
-            if output_path_uvr:
-                self.display_image_in_tab(output_path_uvr, self.image_label_uvfc)
-            else:
-                print(f"Error during IRFC: {error_message}")
-
-        if self.checkbox6.isChecked():
-            vis_image_path = output_vis_image_path  # Ensure this is defined or passed correctly
-            output_tiff_path = os.path.join(output_path, f"multiband_{os.path.basename(vis_image_path)}")
-            try:
-                create_multiband_tiff(self.registered_images, output_tiff_path, output_vis_image_path)
-                self.display_image_in_tab(output_tiff_path, self.image_label_multiband)
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to separate RGB channels: {str(e)}")
-        
-        self.update_tab_visibility()
-
+        )
 
     def reorder_thumbnails(self):
         for i in reversed(range(self.thumbnail_container.count())):
@@ -690,6 +629,37 @@ class ImageApp(QMainWindow):
                 QMessageBox.information(self, "Success", "Multi-Band TIFF saved successfully.")
             except Exception as e:  # Catch all exceptions
                 QMessageBox.critical(self, "Error", f"Failed to create Multi-Band TIFF: {str(e)}")
+    
+    def display_spectral_data(self, spectral_data, pixel_x=None, pixel_y=None):
+        """Displays a histogram of spectral data for a selected pixel or the average of the image using Matplotlib."""
+
+        if pixel_x is not None and pixel_y is not None:
+            # Display spectral profile for selected pixel
+            band_values = spectral_data.get((pixel_x, pixel_y), [])
+            title = f"Pixel ({pixel_x}, {pixel_y})"
+        else:
+            # Display average spectral profile of the entire image
+            all_values = [val for pixel_values in spectral_data.values() for val in pixel_values]
+            band_values = [np.mean(all_values[i::7]) for i in range(7)]  # Assuming 7 bands
+            title = "Average Spectral Profile"
+
+        # Create a Matplotlib figure and axes
+        fig = Figure(figsize=(5, 4))  # Adjust size as needed
+        ax = fig.add_subplot(111)
+
+        # Plot the histogram
+        ax.bar(range(len(band_values)), band_values, color='skyblue')
+        ax.set_title(title)
+        ax.set_xlabel('Band')
+        ax.set_ylabel('Intensity')
+        ax.set_xticks(range(len(band_values)))
+
+        # Embed the plot in a PyQt5 widget
+        canvas = FigureCanvas(fig)
+
+        # Clear existing widgets in the histogram layout
+        for i in reversed(range(self.histogram_layout.count())):
+            self.histogram_layout.itemAt(i).widget().setParent(None) 
 
     def update_thumbnails(self):
         # Clear existing thumbnails
@@ -832,6 +802,23 @@ class ZoomableLabel(QLabel):
 
             self.update_image()
 
+class MatplotlibWidget(FigureCanvas):
+    def __init__(self, parent=None):
+        fig = Figure()
+        self.axes = fig.add_subplot(111)
+        super(MatplotlibWidget, self).__init__(fig)
+        self.setParent(parent)
+        
+    def plot_spectral_data(self, spectral_data):
+        self.axes.clear()
+        wavelengths = list(spectral_data.keys())
+        intensities = list(spectral_data.values())
+        self.axes.plot(wavelengths, intensities)
+        self.axes.set_xlabel('Pixel Position')
+        self.axes.set_ylabel('Intensity')
+        self.axes.set_title('Spectral Data')
+        self.draw()
+        
 class CustomSlider:
     def __init__(self):
         self.slider1 = QSlider(Qt.Horizontal)
@@ -847,6 +834,11 @@ class CustomSlider:
 
     def get_slider2(self):
         return self.slider2
+    
+def display_spectral_data():
+    wavelength = np.linspace(400, 700, 300)
+    intensity = np.random.random(300)
+    return {'wavelength': wavelength, 'intensity': intensity}
 
 
 def main():
