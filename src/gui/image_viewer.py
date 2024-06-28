@@ -840,7 +840,6 @@ def display_spectral_data():
     intensity = np.random.random(300)
     return {'wavelength': wavelength, 'intensity': intensity}
 
-
 def main():
     app = QApplication([])
     app.setWindowIcon(QIcon('icon.ico'))  # Set the taskbar icon
