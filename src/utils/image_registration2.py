@@ -174,163 +174,164 @@ def registration_broad(vis_image_path, ir_image_path, output_path, image_type, m
         print(f"Image registration2 failed, adjusting parameters: {e}")
         return registration_broad(vis_image_path, ir_image_path, output_path, image_type, match_space + 0.05)
         
-def mutual_information_registration(vis_image_path, ir_image_path, output_path, image_type, learning_rates=[0.4, 0.3, 0.2, 0.1, 0.05, 0.01], max_iterations=100, sampling_percentage=0.1):
-    if max_iterations >= 400 or sampling_percentage > 0.6:
+
+def mutual_information_registration(vis_image_path, ir_image_path, output_path, image_type, learning_rate=0.9, max_iterations=100, sampling_percentage=0.01):
+    if max_iterations >= 500 or sampling_percentage > 1.0:
         print("MI failed")
-        return mutual_information_registration2(vis_image_path, ir_image_path, output_path, image_type, sampling_percentage + 0.1)
+        return mutual_information_registration2(vis_image_path, ir_image_path, output_path, image_type)
 
-    for learning_rate in learning_rates:
-        try:
-            print(f"Starting MI with learning_rate={learning_rate}, max_iterations={max_iterations}, sampling_percentage={sampling_percentage}")
-            filename = os.path.join(output_path, f"MI1_registered_{image_type}_{os.path.basename(ir_image_path)}")
+    try:
+        print(f"Starting MI with learning_rate={learning_rate}, max_iterations={max_iterations}, sampling_percentage={sampling_percentage}")
+        filename = os.path.join(output_path, f"MI1_registered_{image_type}_{os.path.basename(ir_image_path)}")
 
-            # Load and preprocess images
-            fixed_image = sitk.ReadImage(vis_image_path, sitk.sitkFloat32)
-            moving_image = sitk.ReadImage(ir_image_path, sitk.sitkFloat32)
+        # Load and preprocess images
+        fixed_image = sitk.ReadImage(vis_image_path, sitk.sitkFloat32)
+        moving_image = sitk.ReadImage(ir_image_path, sitk.sitkFloat32)
 
-            # Normalize images to the range [0, 1]
-            fixed_image = sitk.RescaleIntensity(fixed_image, 0.0, 1.0)
-            moving_image = sitk.RescaleIntensity(moving_image, 0.0, 1.0)
+        # Normalize images to the range [0, 1]
+        fixed_image = sitk.RescaleIntensity(fixed_image, 0.0, 1.0)
+        moving_image = sitk.RescaleIntensity(moving_image, 0.0, 1.0)
 
-            # Initialize registration
-            registration_method = sitk.ImageRegistrationMethod()
+        # Invert the IR image before registration if necessary
+        inverted_moving_image = sitk.InvertIntensity(moving_image, maximum=1.0)
 
-            # Set the similarity metric
-            registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-            registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
-            registration_method.SetMetricSamplingPercentage(sampling_percentage)
+        # Initialize registration
+        registration_method = sitk.ImageRegistrationMethod()
 
-            # Set the optimizer
-            registration_method.SetOptimizerAsRegularStepGradientDescent(learningRate=learning_rate,
-                                                                         minStep=1e-3,
-                                                                         numberOfIterations=max_iterations,
-                                                                         gradientMagnitudeTolerance=1e-4)
+        # Set the similarity metric
+        registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+        registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
+        registration_method.SetMetricSamplingPercentage(sampling_percentage)
 
-            # Set the interpolator
-            registration_method.SetInterpolator(sitk.sitkLinear)
+        # Set the optimizer
+        registration_method.SetOptimizerAsRegularStepGradientDescent(learningRate=learning_rate,
+                                                                     minStep=1e-4,
+                                                                     numberOfIterations=max_iterations,
+                                                                     gradientMagnitudeTolerance=1e-4)
 
-            # Initial transform
-            initial_transform = sitk.TranslationTransform(fixed_image.GetDimension())
-            registration_method.SetInitialTransform(initial_transform, inPlace=False)
+        # Set the interpolator
+        registration_method.SetInterpolator(sitk.sitkLinear)
 
-            # Get initial metric value
-            initial_metric_value = registration_method.MetricEvaluate(fixed_image, moving_image)
-            print(f"Initial metric value: {initial_metric_value}")
+        # Initial transform
+        initial_transform = sitk.TranslationTransform(fixed_image.GetDimension())
+        registration_method.SetInitialTransform(initial_transform)
 
-            # Execute registration
-            final_transform = registration_method.Execute(fixed_image, moving_image)
-            final_metric_value = registration_method.GetMetricValue()
-            print(f"Final metric value: {final_metric_value}")
+        # Execute registration
+        initial_metric_value = registration_method.GetMetricValue()
+        final_transform = registration_method.Execute(fixed_image, inverted_moving_image)
 
-            # Normalize metric values
-            metric_improvement = final_metric_value - initial_metric_value
-            METRIC_IMPROVEMENT = 0.05
-            print(f"Metric improvement: {metric_improvement}")
-
-            if metric_improvement < METRIC_IMPROVEMENT:
-                raise ValueError(f"Registration failed: Metric value improvement too low ({metric_improvement:.3f} < {METRIC_IMPROVEMENT:.3f})")
-
-            # Resample the original moving image
-            resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
-            # Convert back to numpy array for OpenCV saving
-            img1_registered = sitk.GetArrayFromImage(resampled_image)
-
-            # Save the processed image
-            cv.imwrite(filename, img1_registered)
-
-            print(f"Mutual information-based registration successful. Output saved to {filename}")
-            return filename, final_metric_value  # Return the filename and the final metric value
-
-        except Exception as e:
-            print(f"Mutual information-based registration failed with learning_rate={learning_rate}:", e)
-
-    print("MI failed with all provided learning rates")
-    return mutual_information_registration3(vis_image_path, ir_image_path, output_path, image_type,)
-
-def mutual_information_registration2(vis_image_path, ir_image_path, output_path, image_type, learning_rates=[0.01], max_iterations=100, sampling_percentage=0.6):
-    if max_iterations >= 400 or sampling_percentage > 1.0:
-        print("Mutual information-based registration2 failed:", e)
+        # Get the final metric value and check the threshold
+        final_metric_value = registration_method.GetMetricValue()
         
-        # Resample the original moving image
+        METRIC_IMPROVEMENT = 0.05
+        print(f"Initial metric value: {initial_metric_value}")
+        print(f"Final metric value: {final_metric_value}")
+        print(f"Metric improvement: {final_metric_value - initial_metric_value}")
+        
+        if (final_metric_value - initial_metric_value) > METRIC_IMPROVEMENT:
+            raise ValueError(f"Registration failed: Metric value improvement too low ({final_metric_value - initial_metric_value:.3f} < {METRIC_IMPROVEMENT:.3f})")
+
+        # Resample the original (non-inverted) moving image
         resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
         # Convert back to numpy array for OpenCV saving
         img1_registered = sitk.GetArrayFromImage(resampled_image)
 
+        # Save the processed image
+        cv.imwrite(filename, img1_registered)
+
+        print(f"Mutual information-based registration successful. Output saved to {filename}")
+        return filename
+    
+    except Exception as e:
+        print("Mutual information-based registration failed:", e)
+        return mutual_information_registration(vis_image_path, ir_image_path, output_path, image_type, learning_rate - 0.1, max_iterations + 100, min(sampling_percentage * 5, 1.0))
+
+def registration_broad2(vis_image_path, ir_image_path, output_path, image_type):
+    try:
+        print("Starting SIFT2 registration...")
+        filename = os.path.join(output_path, f"SIFT2_registered_{image_type}_{os.path.basename(ir_image_path)}")
+        
+        # Load images
+        img2 = cv.imread(vis_image_path, cv.IMREAD_GRAYSCALE)  # referenceImage
+        img1 = cv.imread(ir_image_path, cv.IMREAD_GRAYSCALE)  # sensedImage
+
+        # Resize the images
+        resize_factor = 1.0 / 4.0
+        img1_rs = cv.resize(img1, (0, 0), fx=resize_factor, fy=resize_factor)
+        img2_rs = cv.resize(img2, (0, 0), fx=resize_factor, fy=resize_factor)
+
+        # Initiate SIFT detector
+        sift_detector = cv.SIFT_create()
+        # Initiate SIFT detector with adjusted parameters
+        sift_detector = cv.SIFT_create(nfeatures=500, contrastThreshold=0.02, edgeThreshold=10)
+
+        # Find the keypoints and descriptors with SIFT on the lower resolution images
+        kp1, des1 = sift_detector.detectAndCompute(img1_rs, None)
+        kp2, des2 = sift_detector.detectAndCompute(img2_rs, None)
+
+        # BFMatcher with default params
+        bf = cv.BFMatcher()
+        matches = bf.knnMatch(des1, des2, k=2)
+
+        # Filter out poor matches
+        good_matches = []
+        for m, n in matches:
+            if m.distance < 0.7 * n.distance:
+                good_matches.append(m)
+
+        if len(good_matches) < 30:  # Adjust the threshold as needed
+            raise Exception("Insufficient keypoints for registration")
+
+        matches = good_matches
+        points1 = np.zeros((len(matches), 2), dtype=np.float32)
+        points2 = np.zeros((len(matches), 2), dtype=np.float32)
+
+        for i, match in enumerate(matches):
+            points1[i, :] = kp1[match.queryIdx].pt
+            points2[i, :] = kp2[match.trainIdx].pt
+
+        # Find homography
+        H, mask = cv.findHomography(points1, points2, cv.RANSAC)
+
+        # Get low-res and high-res sizes
+        low_height, low_width = img1_rs.shape
+        height, width = img1.shape
+        low_size = np.float32([[0, 0], [0, low_height], [low_width, low_height], [low_width, 0]])
+        high_size = np.float32([[0, 0], [0, height], [width, height], [width, 0]])
+
+        # Compute scaling transformations
+        scale_up = cv.getPerspectiveTransform(low_size, high_size)
+        scale_down = cv.getPerspectiveTransform(high_size, low_size)
+
+        # Combine the transformations
+        h_and_scale_up = np.matmul(scale_up, H)
+        scale_down_h_scale_up = np.matmul(h_and_scale_up, scale_down)
+
+        # Warp image 1 to align with image 2
+        img1Reg = cv.warpPerspective(
+            img1,
+            scale_down_h_scale_up,
+            (img2.shape[1], img2.shape[0])
+        )
+
+        # Save the processed image using OpenCV
+        cv.imwrite(filename, img1Reg)
+
+        # Reload the saved image using SimpleITK for further processing
+        img1Reg_sitk = sitk.ReadImage(filename, sitk.sitkFloat32)
+
+        print("Registration successful with registration_broad2.")
+        return mutual_information_registration2(vis_image_path, filename, output_path, image_type)
+
+    except Exception as e:
+        print(f"SIFT2 failed: {e}")
         # Save the input image to the output directory with a prefix
         unregistered_filename = os.path.join(output_path, f"unregistered_{image_type}_{os.path.basename(ir_image_path)}")
         cv.imwrite(unregistered_filename, cv.imread(ir_image_path, cv.IMREAD_GRAYSCALE))  # Save the original IR image
         return unregistered_filename
 
-    for learning_rate in learning_rates:
-        try:
-            print(f"Starting MI with learning_rate={learning_rate}, max_iterations={max_iterations}, sampling_percentage={sampling_percentage}")
-            filename = os.path.join(output_path, f"MI1_registered_{image_type}_{os.path.basename(ir_image_path)}")
 
-            # Load and preprocess images
-            fixed_image = sitk.ReadImage(vis_image_path, sitk.sitkFloat32)
-            moving_image = sitk.ReadImage(ir_image_path, sitk.sitkFloat32)
-
-            # Normalize images to the range [0, 1]
-            fixed_image = sitk.RescaleIntensity(fixed_image, 0.0, 1.0)
-            moving_image = sitk.RescaleIntensity(moving_image, 0.0, 1.0)
-
-            # Initialize registration
-            registration_method = sitk.ImageRegistrationMethod()
-
-            # Set the similarity metric
-            registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-            registration_method.SetMetricSamplingStrategy(registration_method.RANDOM)
-            registration_method.SetMetricSamplingPercentage(sampling_percentage)
-
-            # Set the optimizer
-            registration_method.SetOptimizerAsRegularStepGradientDescent(learningRate=learning_rate,
-                                                                         minStep=1e-3,
-                                                                         numberOfIterations=max_iterations,
-                                                                         gradientMagnitudeTolerance=1e-4)
-
-            # Set the interpolator
-            registration_method.SetInterpolator(sitk.sitkLinear)
-
-            # Initial transform
-            initial_transform = sitk.TranslationTransform(fixed_image.GetDimension())
-            registration_method.SetInitialTransform(initial_transform, inPlace=False)
-
-            # Get initial metric value
-            initial_metric_value = registration_method.MetricEvaluate(fixed_image, moving_image)
-            print(f"Initial metric value: {initial_metric_value}")
-
-            # Execute registration
-            final_transform = registration_method.Execute(fixed_image, moving_image)
-            final_metric_value = registration_method.GetMetricValue()
-            print(f"Final metric value: {final_metric_value}")
-
-            # Normalize metric values
-            metric_improvement = final_metric_value - initial_metric_value
-            METRIC_IMPROVEMENT = 0.05
-            print(f"Metric improvement: {metric_improvement}")
-
-            if metric_improvement < METRIC_IMPROVEMENT:
-                raise ValueError(f"Registration failed: Metric value improvement too low ({metric_improvement:.3f} < {METRIC_IMPROVEMENT:.3f})")
-
-            # Resample the original moving image
-            resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
-            # Convert back to numpy array for OpenCV saving
-            img1_registered = sitk.GetArrayFromImage(resampled_image)
-
-            # Save the processed image
-            cv.imwrite(filename, img1_registered)
-
-            print(f"Mutual information-based registration successful. Output saved to {filename}")
-            return filename, final_metric_value  # Return the filename and the final metric value
-
-        except Exception as e:
-            print(f"Mutual information-based registration failed with learning_rate={learning_rate}:", e)
-            
-    print("MI failed with all provided learning rates")
-    return mutual_information_registration2(vis_image_path, ir_image_path, output_path, image_type,)
-
-
-def mutual_information_registration3(vis_image_path, registered_filename, output_path, image_type):
+def mutual_information_registration2(vis_image_path, registered_filename, output_path, image_type):
     try:
         print("Starting mutual information-based registration2...")
         output_filename = os.path.join(output_path, f"registered_{image_type}_{os.path.basename(registered_filename)}")
